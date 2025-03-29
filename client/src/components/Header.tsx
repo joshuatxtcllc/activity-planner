@@ -17,34 +17,34 @@ const Header = () => {
           <ul className="flex space-x-1 md:space-x-8 justify-center">
             <li>
               <Link href="/">
-                <a className="nav-item active px-3 py-2 text-light hover:text-accent transition-colors duration-200 flex items-center relative after:content-[''] after:absolute after:w-full after:h-0.5 after:bg-accent after:bottom-[-4px] after:left-0">
+                <div className="nav-item active px-3 py-2 text-light hover:text-accent transition-colors duration-200 flex items-center relative cursor-pointer after:content-[''] after:absolute after:w-full after:h-0.5 after:bg-accent after:bottom-[-4px] after:left-0">
                   <Home className="h-5 w-5 mr-1" />
                   Home
-                </a>
+                </div>
               </Link>
             </li>
             <li>
               <Link href="/ideas">
-                <a className="nav-item px-3 py-2 text-light hover:text-accent transition-colors duration-200 flex items-center relative after:content-[''] after:absolute after:w-0 after:h-0.5 after:bg-accent after:bottom-[-4px] after:left-0 hover:after:w-full after:transition-all after:duration-300">
+                <div className="nav-item px-3 py-2 text-light hover:text-accent transition-colors duration-200 flex items-center relative cursor-pointer after:content-[''] after:absolute after:w-0 after:h-0.5 after:bg-accent after:bottom-[-4px] after:left-0 hover:after:w-full after:transition-all after:duration-300">
                   <Lightbulb className="h-5 w-5 mr-1" />
                   Ideas
-                </a>
+                </div>
               </Link>
             </li>
             <li>
               <Link href="/calendar">
-                <a className="nav-item px-3 py-2 text-light hover:text-accent transition-colors duration-200 flex items-center relative after:content-[''] after:absolute after:w-0 after:h-0.5 after:bg-accent after:bottom-[-4px] after:left-0 hover:after:w-full after:transition-all after:duration-300">
+                <div className="nav-item px-3 py-2 text-light hover:text-accent transition-colors duration-200 flex items-center relative cursor-pointer after:content-[''] after:absolute after:w-0 after:h-0.5 after:bg-accent after:bottom-[-4px] after:left-0 hover:after:w-full after:transition-all after:duration-300">
                   <Calendar className="h-5 w-5 mr-1" />
                   Calendar
-                </a>
+                </div>
               </Link>
             </li>
             <li>
               <Link href="/profile">
-                <a className="nav-item px-3 py-2 text-light hover:text-accent transition-colors duration-200 flex items-center relative after:content-[''] after:absolute after:w-0 after:h-0.5 after:bg-accent after:bottom-[-4px] after:left-0 hover:after:w-full after:transition-all after:duration-300">
+                <div className="nav-item px-3 py-2 text-light hover:text-accent transition-colors duration-200 flex items-center relative cursor-pointer after:content-[''] after:absolute after:w-0 after:h-0.5 after:bg-accent after:bottom-[-4px] after:left-0 hover:after:w-full after:transition-all after:duration-300">
                   <User className="h-5 w-5 mr-1" />
                   Profile
-                </a>
+                </div>
               </Link>
             </li>
           </ul>
