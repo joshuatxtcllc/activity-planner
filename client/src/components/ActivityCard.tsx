@@ -1,5 +1,5 @@
-import { Music, Calendar, MapPin } from "lucide-react";
-import { Avatar } from "@/components/ui/avatar";
+import { Music, Calendar, MapPin, GlassWater, Paintbrush } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 export interface ActivityCardProps {
   title: string;
@@ -32,17 +32,9 @@ const ActivityCard = ({
       case "music":
         return <Music className="h-16 w-16 text-primary opacity-70" />;
       case "cocktail":
-        return (
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-secondary opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
-        );
+        return <GlassWater className="h-16 w-16 text-secondary opacity-70" />;
       case "art":
-        return (
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-accent opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        );
+        return <Paintbrush className="h-16 w-16 text-accent opacity-70" />;
       default:
         return <Music className="h-16 w-16 text-primary opacity-70" />;
     }
@@ -99,7 +91,11 @@ const ActivityCard = ({
             {Array(Math.min(2, attendees))
               .fill(0)
               .map((_, index) => (
-                <Avatar key={index} className="h-8 w-8 border-2 border-dark-surface" />
+                <Avatar key={index} className="h-8 w-8 border-2 border-dark-surface">
+                  <AvatarFallback>
+                    {String.fromCharCode(65 + index)}
+                  </AvatarFallback>
+                </Avatar>
               ))}
             {attendees > 2 && (
               <div className="h-8 w-8 rounded-full border-2 border-dark-surface bg-dark flex items-center justify-center text-xs text-gray-400">

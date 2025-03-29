@@ -1,26 +1,83 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { PlusIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ActivityCard from "@/components/ActivityCard";
 import ComingSoonFeatures from "@/components/ComingSoonFeatures";
+import NewIdeaDialog from "@/components/NewIdeaDialog";
+
+interface ActivityType {
+  id: number;
+  title: string;
+  isPrivate: boolean;
+  isFeatured?: boolean;
+  date: string;
+  location: string;
+  tags: Array<{
+    name: string;
+    color: "secondary" | "accent" | "default";
+  }>;
+  attendees: number;
+  icon: "music" | "cocktail" | "art";
+  iconBgClass: string;
+}
 
 const Dashboard = () => {
   const { toast } = useToast();
   const [activeFilter, setActiveFilter] = useState<string>("All Activities");
+  const [activities, setActivities] = useState<ActivityType[]>([
+    {
+      id: 1,
+      title: "Burlesque Night",
+      isPrivate: true,
+      isFeatured: true,
+      date: "Sat, Aug 28 • 8:00 PM",
+      location: "Secret Speakeasy",
+      tags: [
+        { name: "Nightlife", color: "secondary" },
+        { name: "Edgy", color: "accent" },
+        { name: "Adults Only", color: "default" },
+      ],
+      attendees: 5,
+      icon: "music",
+      iconBgClass: "bg-primary bg-opacity-30",
+    },
+    {
+      id: 2,
+      title: "Cocktail Masterclass",
+      isPrivate: false,
+      date: "Fri, Sep 3 • 7:30 PM",
+      location: "Velvet Lounge Downtown",
+      tags: [
+        { name: "Class", color: "secondary" },
+        { name: "Cocktails", color: "default" },
+        { name: "Classy", color: "accent" },
+      ],
+      attendees: 3,
+      icon: "cocktail",
+      iconBgClass: "bg-secondary bg-opacity-30",
+    },
+    {
+      id: 3,
+      title: "Underground Art Show",
+      isPrivate: false,
+      date: "Sun, Sep 12 • 6:00 PM",
+      location: "The Factory Warehouse",
+      tags: [
+        { name: "Art", color: "secondary" },
+        { name: "Edgy", color: "accent" },
+        { name: "Alternative", color: "default" },
+      ],
+      attendees: 7,
+      icon: "art",
+      iconBgClass: "bg-accent bg-opacity-30",
+    },
+  ]);
 
   const handleFilterClick = (filter: string) => {
     setActiveFilter(filter);
     toast({
       title: "Filter Applied",
       description: `Filtering activities by: ${filter}`,
-    });
-  };
-
-  const handleNewIdea = () => {
-    toast({
-      title: "Coming Soon",
-      description: "This feature will allow users to create new activity ideas. Coming soon!",
     });
   };
 
@@ -31,67 +88,28 @@ const Dashboard = () => {
     });
   };
 
-  const activities = [
-    {
-      id: 1,
-      title: "Burlesque Night",
-      isPrivate: true,
-      isFeatured: true,
-      date: "Sat, Aug 28 • 8:00 PM",
-      location: "Secret Speakeasy",
-      tags: [
-        { name: "Nightlife", color: "secondary" as const },
-        { name: "Edgy", color: "accent" as const },
-        { name: "Adults Only", color: "default" as const },
-      ],
-      attendees: 5,
-      icon: "music" as const,
-      iconBgClass: "bg-primary bg-opacity-30",
-    },
-    {
-      id: 2,
-      title: "Cocktail Masterclass",
-      isPrivate: false,
-      date: "Fri, Sep 3 • 7:30 PM",
-      location: "Velvet Lounge Downtown",
-      tags: [
-        { name: "Class", color: "secondary" as const },
-        { name: "Cocktails", color: "default" as const },
-        { name: "Classy", color: "accent" as const },
-      ],
-      attendees: 3,
-      icon: "cocktail" as const,
-      iconBgClass: "bg-secondary bg-opacity-30",
-    },
-    {
-      id: 3,
-      title: "Underground Art Show",
-      isPrivate: false,
-      date: "Sun, Sep 12 • 6:00 PM",
-      location: "The Factory Warehouse",
-      tags: [
-        { name: "Art", color: "secondary" as const },
-        { name: "Edgy", color: "accent" as const },
-        { name: "Alternative", color: "default" as const },
-      ],
-      attendees: 7,
-      icon: "art" as const,
-      iconBgClass: "bg-accent bg-opacity-30",
-    },
-  ];
+  const handleAddActivity = (activity: any) => {
+    const newActivity: ActivityType = {
+      id: activities.length + 1,
+      title: activity.title,
+      isPrivate: activity.isPrivate,
+      isFeatured: activity.isFeatured,
+      date: activity.date,
+      location: activity.location,
+      tags: activity.tags,
+      attendees: 0, // Start with 0 attendees for new activities
+      icon: activity.icon,
+      iconBgClass: activity.iconBgClass,
+    };
+    
+    setActivities([...activities, newActivity]);
+  };
 
   return (
     <section id="dashboard" className="container mx-auto px-4 py-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
         <h1 className="text-3xl font-bold mb-4 md:mb-0">Welcome to Your Activity Planner</h1>
-        <Button 
-          id="new-idea" 
-          onClick={handleNewIdea}
-          className="bg-accent hover:bg-opacity-80 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 flex items-center"
-        >
-          <PlusIcon className="h-5 w-5 mr-2" />
-          New Idea
-        </Button>
+        <NewIdeaDialog onAddActivity={handleAddActivity} />
       </div>
 
       <div className="mb-8">
