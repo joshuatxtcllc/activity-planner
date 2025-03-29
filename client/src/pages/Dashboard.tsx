@@ -4,8 +4,9 @@ import { useToast } from "@/hooks/use-toast";
 import ActivityCard from "@/components/ActivityCard";
 import ComingSoonFeatures from "@/components/ComingSoonFeatures";
 import NewIdeaDialog from "@/components/NewIdeaDialog";
+import SpinningWheel from "@/components/SpinningWheel";
 
-interface ActivityType {
+export interface ActivityType {
   id: number;
   title: string;
   isPrivate: boolean;
@@ -105,6 +106,14 @@ const Dashboard = () => {
     setActivities([...activities, newActivity]);
   };
 
+  const handleActivitySelected = (activity: ActivityType) => {
+    // Here we can do something when an activity is selected from the wheel
+    toast({
+      title: "Activity Selected!",
+      description: `Why not try "${activity.title}" today?`,
+    });
+  };
+
   return (
     <section id="dashboard" className="container mx-auto px-4 py-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
@@ -130,6 +139,15 @@ const Dashboard = () => {
         </div>
       </div>
 
+      {/* Spinning Wheel */}
+      <div className="my-10 py-6 px-4 bg-dark-surface rounded-xl border border-gray-800">
+        <SpinningWheel 
+          activities={activities} 
+          onActivitySelected={handleActivitySelected} 
+        />
+      </div>
+
+      <h2 className="text-2xl font-bold mb-6 mt-12">Your Activities</h2>
       <div id="activity-list" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {activities.map((activity) => (
           <div key={activity.id} onClick={() => handleDetailsClick(activity.title)}>
