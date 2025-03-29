@@ -5,6 +5,7 @@ import ActivityCard from "@/components/ActivityCard";
 import ComingSoonFeatures from "@/components/ComingSoonFeatures";
 import NewIdeaDialog from "@/components/NewIdeaDialog";
 import SpinningWheel from "@/components/SpinningWheel";
+import ActivityAggregator from "@/components/ActivityAggregator";
 
 export interface ActivityType {
   id: number;
@@ -147,13 +148,22 @@ const Dashboard = () => {
         />
       </div>
 
-      <h2 className="text-2xl font-bold mb-6 mt-12">Your Activities</h2>
-      <div id="activity-list" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {activities.map((activity) => (
-          <div key={activity.id} onClick={() => handleDetailsClick(activity.title)}>
-            <ActivityCard {...activity} />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-12">
+        <div className="lg:col-span-2">
+          <h2 className="text-2xl font-bold mb-6">Your Activities</h2>
+          <div id="activity-list" className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {activities.map((activity) => (
+              <div key={activity.id} onClick={() => handleDetailsClick(activity.title)}>
+                <ActivityCard {...activity} />
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
+        
+        <div className="lg:col-span-1">
+          <h2 className="text-2xl font-bold mb-6">External Activities</h2>
+          <ActivityAggregator onSaveActivity={handleAddActivity} />
+        </div>
       </div>
 
       <ComingSoonFeatures />
