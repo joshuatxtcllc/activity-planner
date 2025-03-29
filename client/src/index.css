@@ -11,3 +11,30 @@
     @apply font-sans antialiased bg-background text-foreground;
   }
 }
+
+:root {
+  --accent: 342, 92%, 54%;
+  --dark: 240, 10%, 3.9%;
+  --dark-surface: 240, 10%, 7.9%;
+  --light: 0, 0%, 98%;
+}
+
+.bg-dark {
+  background-color: hsl(var(--dark));
+}
+
+.bg-dark-surface {
+  background-color: hsl(var(--dark-surface));
+}
+
+.text-light {
+  color: hsl(var(--light));
+}
+
+.text-accent {
+  color: hsl(var(--accent));
+}
+
+.bg-accent {
+  background-color: hsl(var(--accent));
+}
