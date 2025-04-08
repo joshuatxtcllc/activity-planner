@@ -137,8 +137,8 @@ export const setUserLocation = (location: UserLocation) => {
 // Get events from Ticketmaster API
 export const getTicketmasterEvents = async (apiKey: string, location: UserLocation, radius: number = 25): Promise<ActivityType[]> => {
   try {
-    // Ticketmaster API requires a developer API key
-    const url = `https://app.ticketmaster.com/discovery/v2/events.json?apikey=${apiKey}&latlong=${location.latitude},${location.longitude}&radius=${radius}&size=10&sort=date,asc`;
+    // Use our server-side proxy to avoid CORS issues
+    const url = `/api/proxy/ticketmaster?apiKey=${apiKey}&latitude=${location.latitude}&longitude=${location.longitude}&radius=${radius}`;
     
     const response = await fetch(url);
     
@@ -246,8 +246,8 @@ export const getTicketmasterEvents = async (apiKey: string, location: UserLocati
 // Get events from Eventbrite API
 export const getEventbriteEvents = async (apiKey: string, location: UserLocation, radius: number = 25): Promise<ActivityType[]> => {
   try {
-    // Eventbrite API requires OAuth token
-    const url = `https://www.eventbriteapi.com/v3/events/search/?location.latitude=${location.latitude}&location.longitude=${location.longitude}&location.within=${radius}km&expand=venue,category,ticket_availability&token=${apiKey}`;
+    // Use our server-side proxy to avoid CORS issues
+    const url = `/api/proxy/eventbrite?apiKey=${apiKey}&latitude=${location.latitude}&longitude=${location.longitude}&radius=${radius}`;
     
     const response = await fetch(url);
     
@@ -364,7 +364,8 @@ export const getTripAdvisorActivities = async (apiKey: string, location: UserLoc
       throw new Error("Could not find location ID for coordinates");
     }
     
-    const url = `https://api.content.tripadvisor.com/api/v1/location/${locationId}/attractions?key=${apiKey}&language=en`;
+    // Use our server-side proxy to avoid CORS issues
+    const url = `/api/proxy/tripadvisor/attractions?apiKey=${apiKey}&locationId=${locationId}`;
     
     const response = await fetch(url);
     
@@ -466,7 +467,8 @@ export const getTripAdvisorActivities = async (apiKey: string, location: UserLoc
 // Helper function to get TripAdvisor location ID for a pair of coordinates
 async function getTripAdvisorLocationId(apiKey: string, location: UserLocation): Promise<string | null> {
   try {
-    const url = `https://api.content.tripadvisor.com/api/v1/location/search?key=${apiKey}&latLng=${location.latitude},${location.longitude}&category=attractions&language=en`;
+    // Use our server-side proxy to avoid CORS issues
+    const url = `/api/proxy/tripadvisor/location?apiKey=${apiKey}&latitude=${location.latitude}&longitude=${location.longitude}`;
     
     const response = await fetch(url);
     
