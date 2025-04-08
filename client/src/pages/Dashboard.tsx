@@ -6,7 +6,7 @@ import ComingSoonFeatures from "@/components/ComingSoonFeatures";
 import NewIdeaDialog from "@/components/NewIdeaDialog";
 import SpinningWheel from "@/components/SpinningWheel";
 import ActivityAggregator from "@/components/ActivityAggregator";
-import OnlineEventsSearch from "@/components/OnlineEventsSearch";
+import LocalEventsExplorer from "@/components/LocalEventsExplorer";
 
 export interface ActivityType {
   id: number;
@@ -164,7 +164,7 @@ const Dashboard = () => {
         <div className="lg:col-span-1 space-y-8">
           <div>
             <h2 className="text-2xl font-bold mb-6">Find Events</h2>
-            <OnlineEventsSearch onSaveActivity={handleAddActivity} />
+            <LocalEventsExplorer onSaveActivity={handleAddActivity} />
           </div>
           
           <div>

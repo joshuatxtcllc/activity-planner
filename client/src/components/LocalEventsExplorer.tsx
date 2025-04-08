@@ -55,13 +55,15 @@ export function LocalEventsExplorer({ onSaveActivity }: LocalEventsExplorerProps
     longitude: ""
   });
   
-  // API keys - in a real app these would be stored securely
-  // For now, they are placeholders since we'll use fallback data
+  // Using the API keys from environment variables
   const apiKeys = {
     ticketmaster: import.meta.env.VITE_TICKETMASTER_API_KEY || "",
     eventbrite: import.meta.env.VITE_EVENTBRITE_API_KEY || "",
     tripadvisor: import.meta.env.VITE_TRIPADVISOR_API_KEY || ""
   };
+  
+  // Check if we have at least one API key
+  const hasApiKeys = apiKeys.ticketmaster || apiKeys.eventbrite || apiKeys.tripadvisor;
   
   // Fetch user location on component mount
   useEffect(() => {
@@ -176,8 +178,8 @@ export function LocalEventsExplorer({ onSaveActivity }: LocalEventsExplorerProps
             </CardTitle>
             <CardDescription>
               {userLocation?.city 
-                ? `Showing events near ${userLocation.city}` 
-                : "Discover events happening near you"}
+                ? `Showing ${hasApiKeys ? 'real' : 'sample'} events near ${userLocation.city}` 
+                : `Discover ${hasApiKeys ? 'real' : 'sample'} events happening near you`}
             </CardDescription>
           </div>
           
@@ -329,10 +331,17 @@ export function LocalEventsExplorer({ onSaveActivity }: LocalEventsExplorerProps
         )}
       </CardContent>
       
-      <CardFooter className="flex justify-center border-t border-gray-800 pt-4">
-        <p className="text-xs text-gray-500">
+      <CardFooter className="flex flex-col items-center border-t border-gray-800 pt-4">
+        <p className="text-xs text-gray-500 mb-2">
           Events are aggregated from various sources and may be subject to change. Always check the official event website for the most up-to-date information.
         </p>
+        {hasApiKeys && (
+          <div className="flex flex-wrap gap-2 justify-center">
+            {apiKeys.ticketmaster && <Badge variant="outline">Ticketmaster</Badge>}
+            {apiKeys.eventbrite && <Badge variant="outline">Eventbrite</Badge>}
+            {apiKeys.tripadvisor && <Badge variant="outline">TripAdvisor</Badge>}
+          </div>
+        )}
       </CardFooter>
     </Card>
   );
