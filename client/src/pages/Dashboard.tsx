@@ -22,6 +22,12 @@ export interface ActivityType {
   attendees: number;
   icon: "music" | "cocktail" | "art";
   iconBgClass: string;
+  eventUrl?: string;
+  venueName?: string;
+  coordinates?: {
+    latitude: number;
+    longitude: number;
+  };
 }
 
 const Dashboard = () => {

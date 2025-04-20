@@ -165,14 +165,26 @@ export const getTicketmasterEvents = async (apiKey: string, location: UserLocati
         minute: '2-digit'
       });
       
-      // Build venue/location string
+      // Build venue/location string and extract venue information
       let locationStr = "TBA";
+      let venueName = "";
+      let venueCoordinates = null;
+      
       if (event._embedded && event._embedded.venues && event._embedded.venues[0]) {
         const venue = event._embedded.venues[0];
+        venueName = venue.name;
         locationStr = venue.name;
         
         if (venue.city && venue.city.name) {
           locationStr += `, ${venue.city.name}`;
+        }
+        
+        // Extract venue coordinates if available
+        if (venue.location && venue.location.latitude && venue.location.longitude) {
+          venueCoordinates = {
+            latitude: parseFloat(venue.location.latitude),
+            longitude: parseFloat(venue.location.longitude)
+          };
         }
       }
       
@@ -235,6 +247,9 @@ export const getTicketmasterEvents = async (apiKey: string, location: UserLocati
         attendees: Math.floor(Math.random() * 10), // We don't have real attendee data
         icon,
         iconBgClass,
+        eventUrl: event.url || null,
+        venueName: venueName || null,
+        coordinates: venueCoordinates || null
       };
     });
   } catch (error) {

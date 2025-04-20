@@ -18,7 +18,9 @@ import {
   Utensils,
   Clock,
   ExternalLink,
-  Plus
+  Plus,
+  Ticket,
+  Navigation
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
@@ -118,6 +120,33 @@ export function EventDetailsDialog({
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Ticket and Directions buttons */}
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          {event.eventUrl && (
+            <Button
+              onClick={() => window.open(event.eventUrl, '_blank')}
+              className="w-full gap-1 bg-gradient-to-r from-primary to-primary-600"
+            >
+              <Ticket className="h-4 w-4" />
+              Purchase Tickets
+            </Button>
+          )}
+          
+          {event.coordinates && (
+            <Button
+              onClick={() => {
+                const { latitude, longitude } = event.coordinates!;
+                window.open(`https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`, '_blank');
+              }}
+              variant="secondary"
+              className="w-full gap-1"
+            >
+              <Navigation className="h-4 w-4" />
+              Get Directions
+            </Button>
+          )}
         </div>
 
         <DialogFooter className="flex flex-col sm:flex-row gap-2">
