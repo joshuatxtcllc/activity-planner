@@ -121,8 +121,11 @@ export function LocalEventsExplorer({ onSaveActivity }: LocalEventsExplorerProps
     isError, 
     refetch 
   } = useQuery({
-    queryKey: ['localEvents', userLocation?.latitude, userLocation?.longitude],
-    queryFn: () => getLocalEvents(apiKeys),
+    queryKey: ['localEvents', userLocation?.city, userLocation?.latitude, userLocation?.longitude],
+    queryFn: () => {
+      console.log("Fetching events for location:", userLocation);
+      return getLocalEvents(apiKeys);
+    },
     enabled: !!userLocation,
   });
   
@@ -173,12 +176,14 @@ export function LocalEventsExplorer({ onSaveActivity }: LocalEventsExplorerProps
     // Show loading state
     // The refresh will happen automatically when location changes
     
-    // Update state with the new location
+    // First update the global location service
+    import('@/lib/localEventsService').then(module => {
+      module.setUserLocation(newLocation);
+    });
+    
+    // Update local state and close modal
     setUserLocation(newLocation);
     setLocationModalOpen(false);
-    
-    // Call the external function to update the global location state
-    setUserLocation(newLocation);
     
     // Force a refresh with the new location
     setTimeout(() => {

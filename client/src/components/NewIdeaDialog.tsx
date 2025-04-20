@@ -3,7 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, MapPin, Tag, X } from "lucide-react";
+import { Calendar, MapPin, Tag, X, Music, Utensils, Palette } from "lucide-react";
 import { insertActivitySchema } from "@shared/schema";
 
 import {
@@ -225,13 +225,41 @@ export function NewIdeaDialog({ onAddActivity }: NewIdeaDialogProps) {
                   >
                     <FormControl>
                       <SelectTrigger className="bg-dark border-gray-700">
-                        <SelectValue placeholder="Select an icon type" />
+                        <SelectValue placeholder="Select an icon type">
+                          {field.value === "music" && (
+                            <div className="flex items-center gap-2">
+                              <Music className="h-4 w-4 text-primary" />
+                              <span>Music</span>
+                            </div>
+                          )}
+                          {field.value === "cocktail" && (
+                            <div className="flex items-center gap-2">
+                              <Utensils className="h-4 w-4 text-secondary" />
+                              <span>Cocktail</span>
+                            </div>
+                          )}
+                          {field.value === "art" && (
+                            <div className="flex items-center gap-2">
+                              <Palette className="h-4 w-4 text-accent" />
+                              <span>Art</span>
+                            </div>
+                          )}
+                        </SelectValue>
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="bg-dark-surface border-gray-700">
-                      <SelectItem value="music">Music</SelectItem>
-                      <SelectItem value="cocktail">Cocktail</SelectItem>
-                      <SelectItem value="art">Art</SelectItem>
+                      <SelectItem value="music" className="flex items-center gap-2">
+                        <Music className="h-4 w-4 text-primary" />
+                        <span>Music</span>
+                      </SelectItem>
+                      <SelectItem value="cocktail" className="flex items-center gap-2">
+                        <Utensils className="h-4 w-4 text-secondary" />
+                        <span>Cocktail</span>
+                      </SelectItem>
+                      <SelectItem value="art" className="flex items-center gap-2">
+                        <Palette className="h-4 w-4 text-accent" />
+                        <span>Art</span>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -255,9 +283,18 @@ export function NewIdeaDialog({ onAddActivity }: NewIdeaDialogProps) {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="bg-dark-surface border-gray-700">
-                      <SelectItem value="bg-primary bg-opacity-30">Purple</SelectItem>
-                      <SelectItem value="bg-secondary bg-opacity-30">Blue</SelectItem>
-                      <SelectItem value="bg-accent bg-opacity-30">Pink</SelectItem>
+                      <SelectItem value="bg-primary bg-opacity-30" className="flex items-center gap-2">
+                        <div className="h-4 w-4 bg-primary rounded-full"></div>
+                        <span>Purple</span>
+                      </SelectItem>
+                      <SelectItem value="bg-secondary bg-opacity-30" className="flex items-center gap-2">
+                        <div className="h-4 w-4 bg-secondary rounded-full"></div>
+                        <span>Blue</span>
+                      </SelectItem>
+                      <SelectItem value="bg-accent bg-opacity-30" className="flex items-center gap-2">
+                        <div className="h-4 w-4 bg-accent rounded-full"></div>
+                        <span>Pink</span>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
