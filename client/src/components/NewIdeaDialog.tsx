@@ -279,7 +279,26 @@ export function NewIdeaDialog({ onAddActivity }: NewIdeaDialogProps) {
                   >
                     <FormControl>
                       <SelectTrigger className="bg-dark border-gray-700">
-                        <SelectValue placeholder="Select a background color" />
+                        <SelectValue placeholder="Select a background color">
+                          {field.value === "bg-primary bg-opacity-30" && (
+                            <div className="flex items-center gap-2">
+                              <div className="h-4 w-4 bg-primary rounded-full"></div>
+                              <span>Purple</span>
+                            </div>
+                          )}
+                          {field.value === "bg-secondary bg-opacity-30" && (
+                            <div className="flex items-center gap-2">
+                              <div className="h-4 w-4 bg-secondary rounded-full"></div>
+                              <span>Blue</span>
+                            </div>
+                          )}
+                          {field.value === "bg-accent bg-opacity-30" && (
+                            <div className="flex items-center gap-2">
+                              <div className="h-4 w-4 bg-accent rounded-full"></div>
+                              <span>Pink</span>
+                            </div>
+                          )}
+                        </SelectValue>
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="bg-dark-surface border-gray-700">
@@ -319,12 +338,34 @@ export function NewIdeaDialog({ onAddActivity }: NewIdeaDialogProps) {
                   onValueChange={(value: "secondary" | "accent" | "default") => setSelectedTagColor(value)}
                 >
                   <SelectTrigger className="bg-dark border-gray-700 w-32">
-                    <SelectValue placeholder="Color" />
+                    <SelectValue placeholder="Color">
+                      {selectedTagColor && (
+                        <div className="flex items-center gap-2">
+                          <div className={`h-3 w-3 rounded-full ${
+                            selectedTagColor === 'secondary' ? 'bg-secondary' : 
+                            selectedTagColor === 'accent' ? 'bg-accent' : 'bg-gray-400'
+                          }`}></div>
+                          <span>
+                            {selectedTagColor === 'secondary' ? 'Blue' : 
+                             selectedTagColor === 'accent' ? 'Pink' : 'Gray'}
+                          </span>
+                        </div>
+                      )}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent className="bg-dark-surface border-gray-700">
-                    <SelectItem value="default">Gray</SelectItem>
-                    <SelectItem value="secondary">Blue</SelectItem>
-                    <SelectItem value="accent">Pink</SelectItem>
+                    <SelectItem value="default" className="flex items-center gap-2">
+                      <div className="h-3 w-3 bg-gray-400 rounded-full"></div>
+                      <span>Gray</span>
+                    </SelectItem>
+                    <SelectItem value="secondary" className="flex items-center gap-2">
+                      <div className="h-3 w-3 bg-secondary rounded-full"></div>
+                      <span>Blue</span>
+                    </SelectItem>
+                    <SelectItem value="accent" className="flex items-center gap-2">
+                      <div className="h-3 w-3 bg-accent rounded-full"></div>
+                      <span>Pink</span>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 <Button
