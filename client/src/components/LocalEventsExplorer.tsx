@@ -63,13 +63,17 @@ export function LocalEventsExplorer({ onSaveActivity }: LocalEventsExplorerProps
   
   // Using the API keys from environment variables
   const apiKeys = {
-    ticketmaster: import.meta.env.VITE_TICKETMASTER_API_KEY || "",
-    eventbrite: import.meta.env.VITE_EVENTBRITE_API_KEY || "",
-    tripadvisor: import.meta.env.VITE_TRIPADVISOR_API_KEY || ""
+    ticketmaster: import.meta.env.VITE_TICKETMASTER_API_KEY as string || "",
+    eventbrite: import.meta.env.VITE_EVENTBRITE_API_KEY as string || "",
+    tripadvisor: import.meta.env.VITE_TRIPADVISOR_API_KEY as string || ""
   };
   
-  // Check if we have at least one API key
-  const hasApiKeys = apiKeys.ticketmaster || apiKeys.eventbrite || apiKeys.tripadvisor;
+  // Check if we have at least one API key with actual content
+  const hasApiKeys = (
+    (apiKeys.ticketmaster && apiKeys.ticketmaster.length > 5) || 
+    (apiKeys.eventbrite && apiKeys.eventbrite.length > 5) || 
+    (apiKeys.tripadvisor && apiKeys.tripadvisor.length > 5)
+  );
   
   // Fetch user location on component mount
   useEffect(() => {
@@ -79,11 +83,31 @@ export function LocalEventsExplorer({ onSaveActivity }: LocalEventsExplorerProps
         setUserLocation(location);
       } catch (error) {
         console.error("Error getting user location:", error);
+        // Set a default location if browser geolocation fails
+        const defaultLocation: UserLocation = {
+          city: "New York",
+          latitude: 40.7128,
+          longitude: -74.0060,
+          state: "NY",
+          country: "USA"
+        };
+        
+        // Update the custom location form with these values
+        setCustomLocation({
+          city: defaultLocation.city,
+          latitude: defaultLocation.latitude.toString(),
+          longitude: defaultLocation.longitude.toString()
+        });
+        
+        // Show a toast to let the user know
         toast({
           title: "Location Access",
-          description: "Please enable location access to see events near you.",
+          description: "Please use the 'Set Your Location' button to choose your city.",
           variant: "destructive"
         });
+        
+        // Set the user location to the default
+        setUserLocation(defaultLocation);
       }
     };
     
@@ -192,22 +216,22 @@ export function LocalEventsExplorer({ onSaveActivity }: LocalEventsExplorerProps
               <CardDescription>
                 {userLocation?.city 
                   ? `Showing ${hasApiKeys ? 'real' : 'sample'} events near ${userLocation.city}` 
-                  : `Discover ${hasApiKeys ? 'real' : 'sample'} events happening near you`}
+                  : `Please set your location to see local events`}
               </CardDescription>
             </div>
             
             <AlertDialog open={locationModalOpen} onOpenChange={setLocationModalOpen}>
               <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm" className="flex items-center gap-1">
+                <Button variant="default" size="sm" className="flex items-center gap-1 bg-accent hover:bg-accent/90">
                   <MapIcon className="h-4 w-4" />
-                  <span>Change Location</span>
+                  <span>{userLocation?.city ? "Change Location" : "Set Your Location"}</span>
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>Set Your Location</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Enter your city or coordinates to find events in your area.
+                    Enter your city name to find events in your area. Browser location detection may not work in all environments.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 
@@ -344,6 +368,14 @@ export function LocalEventsExplorer({ onSaveActivity }: LocalEventsExplorerProps
                   </div>
                 </div>
               ))}
+            </div>
+          ) : !userLocation ? (
+            <div className="text-center py-8 text-gray-400">
+              <p>Please set your location to see events in your area.</p>
+              <Button variant="default" className="mt-4 bg-accent hover:bg-accent/90" onClick={() => setLocationModalOpen(true)}>
+                <MapIcon className="mr-2 h-4 w-4" />
+                Set Your Location
+              </Button>
             </div>
           ) : (
             <div className="text-center py-8 text-gray-400">
