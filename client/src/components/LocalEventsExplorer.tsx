@@ -170,8 +170,8 @@ export function LocalEventsExplorer({ onSaveActivity }: LocalEventsExplorerProps
       longitude: !isNaN(lng) ? lng : -74.0060
     };
     
-    // Clear current events to show loading state
-    setIsLoading(true);
+    // Show loading state
+    // The refresh will happen automatically when location changes
     
     // Update state with the new location
     setUserLocation(newLocation);
@@ -223,17 +223,18 @@ export function LocalEventsExplorer({ onSaveActivity }: LocalEventsExplorerProps
                 Local Events
               </CardTitle>
               <CardDescription>
-                {userLocation?.city ? (
-                  <div className="flex items-center">
-                    <span className="mr-2">{`Showing ${hasApiKeys ? 'real' : 'sample'} events near`}</span>
-                    <Badge variant="outline" className="bg-primary/30 text-primary-foreground font-medium">
-                      {userLocation.city}
-                    </Badge>
-                  </div>
-                ) : (
-                  `Please set your location to see local events`
-                )}
+                {userLocation?.city 
+                  ? `Showing ${hasApiKeys ? 'real' : 'sample'} events near ${userLocation.city}` 
+                  : `Please set your location to see local events`}
               </CardDescription>
+              
+              {userLocation?.city && (
+                <div className="mt-2 flex items-center">
+                  <Badge variant="outline" className="bg-primary/30 text-primary-foreground font-medium">
+                    {userLocation.city}
+                  </Badge>
+                </div>
+              )}
             </div>
             
             <AlertDialog open={locationModalOpen} onOpenChange={setLocationModalOpen}>
