@@ -609,56 +609,73 @@ export const getLocalEvents = async (apiKeys?: {
     // Try to get user location
     let location: UserLocation;
     
-    try {
-      location = await getUserLocation();
-    } catch (error) {
-      console.warn("Could not get user location:", error);
-      // Default to a location (New York City)
-      location = {
-        latitude: 40.7128,
-        longitude: -74.0060,
-        city: 'New York',
-        state: 'NY',
-        country: 'USA'
-      };
+    if (currentUserLocation) {
+      // Use cached location if available
+      location = currentUserLocation;
+    } else {
+      try {
+        // Try to get location from browser
+        location = await getUserLocation();
+      } catch (error) {
+        console.warn("Could not get user location:", error);
+        // Default to a location (New York City)
+        location = {
+          latitude: 40.7128,
+          longitude: -74.0060,
+          city: 'New York',
+          state: 'NY',
+          country: 'USA'
+        };
+      }
     }
     
     // Array to hold all events from different sources
     let allEvents: ActivityType[] = [];
     
     // Check if we have API keys
-    const hasApiKeys = apiKeys && (apiKeys.ticketmaster || apiKeys.eventbrite || apiKeys.tripadvisor);
+    const hasApiKeys = apiKeys && (
+      (apiKeys.ticketmaster && apiKeys.ticketmaster.length > 5) || 
+      (apiKeys.eventbrite && apiKeys.eventbrite.length > 5) || 
+      (apiKeys.tripadvisor && apiKeys.tripadvisor.length > 5)
+    );
     
     if (!hasApiKeys) {
       // If no API keys, use fallback data
+      console.log("No valid API keys found, using fallback data");
       return getFallbackLocalEvents(location);
     }
     
     // Try to fetch from Ticketmaster if API key is available
-    if (apiKeys?.ticketmaster) {
+    if (apiKeys?.ticketmaster && apiKeys.ticketmaster.length > 5) {
       try {
+        console.log("Fetching from Ticketmaster API");
         const ticketmasterEvents = await getTicketmasterEvents(apiKeys.ticketmaster, location);
         allEvents = [...allEvents, ...ticketmasterEvents];
+        console.log(`Retrieved ${ticketmasterEvents.length} events from Ticketmaster`);
       } catch (error) {
         console.error("Error fetching from Ticketmaster:", error);
       }
     }
     
     // Try to fetch from Eventbrite if API key is available
-    if (apiKeys?.eventbrite) {
+    if (apiKeys?.eventbrite && apiKeys.eventbrite.length > 5) {
       try {
+        console.log("Fetching from Eventbrite API");
         const eventbriteEvents = await getEventbriteEvents(apiKeys.eventbrite, location);
         allEvents = [...allEvents, ...eventbriteEvents];
+        console.log(`Retrieved ${eventbriteEvents.length} events from Eventbrite`);
       } catch (error) {
         console.error("Error fetching from Eventbrite:", error);
       }
     }
     
     // Try to fetch from TripAdvisor if API key is available
-    if (apiKeys?.tripadvisor) {
+    if (apiKeys?.tripadvisor && apiKeys.tripadvisor.length > 5) {
       try {
+        console.log("Fetching from TripAdvisor API");
         const tripAdvisorEvents = await getTripAdvisorActivities(apiKeys.tripadvisor, location);
         allEvents = [...allEvents, ...tripAdvisorEvents];
+        console.log(`Retrieved ${tripAdvisorEvents.length} events from TripAdvisor`);
       } catch (error) {
         console.error("Error fetching from TripAdvisor:", error);
       }
@@ -666,6 +683,7 @@ export const getLocalEvents = async (apiKeys?: {
     
     // If we couldn't get anything from APIs, use fallback data
     if (allEvents.length === 0) {
+      console.log("No events retrieved from APIs, using fallback data");
       return getFallbackLocalEvents(location);
     }
     
@@ -676,6 +694,7 @@ export const getLocalEvents = async (apiKeys?: {
       return dateA.getTime() - dateB.getTime();
     });
     
+    console.log(`Total events retrieved: ${allEvents.length}`);
     return allEvents;
   } catch (error) {
     console.error("Error aggregating local events:", error);

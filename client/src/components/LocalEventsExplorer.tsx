@@ -52,9 +52,9 @@ export function LocalEventsExplorer({ onSaveActivity }: LocalEventsExplorerProps
   const [locationModalOpen, setLocationModalOpen] = useState(false);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [customLocation, setCustomLocation] = useState({
-    city: "",
-    latitude: "",
-    longitude: ""
+    city: "New York",
+    latitude: "40.7128",
+    longitude: "-74.0060"
   });
   
   // State for event details dialog
@@ -94,7 +94,7 @@ export function LocalEventsExplorer({ onSaveActivity }: LocalEventsExplorerProps
         
         // Update the custom location form with these values
         setCustomLocation({
-          city: defaultLocation.city,
+          city: defaultLocation.city || "New York",
           latitude: defaultLocation.latitude.toString(),
           longitude: defaultLocation.longitude.toString()
         });
