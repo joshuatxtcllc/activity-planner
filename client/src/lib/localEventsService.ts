@@ -626,7 +626,13 @@ export const getLocalEvents = async (apiKeys?: {
     
     if (currentUserLocation) {
       // Use cached location if available
-      location = currentUserLocation;
+      console.log("Using saved location:", currentUserLocation);
+      location = {
+        ...currentUserLocation,
+        // Ensure we have valid coordinates
+        latitude: currentUserLocation.latitude || 40.7128,
+        longitude: currentUserLocation.longitude || -74.0060
+      };
     } else {
       try {
         // Try to get location from browser

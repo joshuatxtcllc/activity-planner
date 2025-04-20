@@ -162,20 +162,29 @@ export function LocalEventsExplorer({ onSaveActivity }: LocalEventsExplorerProps
       }
     }
     
-    // Create location object
+    // Create location object with default coordinates if not provided
     const newLocation: UserLocation = {
       city: customLocation.city,
-      // Use provided coordinates or defaults for the city
-      latitude: lat || 0,
-      longitude: lng || 0
+      // Use provided coordinates or defaults for major cities
+      latitude: !isNaN(lat) ? lat : 40.7128, // Default to NYC coordinates
+      longitude: !isNaN(lng) ? lng : -74.0060
     };
     
-    // Update state
+    // Clear current events to show loading state
+    setIsLoading(true);
+    
+    // Update state with the new location
     setUserLocation(newLocation);
     setLocationModalOpen(false);
     
-    // Trigger refetch with new location
-    setTimeout(() => refetch(), 100);
+    // Call the external function to update the global location state
+    setUserLocation(newLocation);
+    
+    // Force a refresh with the new location
+    setTimeout(() => {
+      console.log("Refreshing events with new location:", newLocation);
+      refetch();
+    }, 200);
     
     toast({
       title: "Location Updated",
@@ -214,9 +223,16 @@ export function LocalEventsExplorer({ onSaveActivity }: LocalEventsExplorerProps
                 Local Events
               </CardTitle>
               <CardDescription>
-                {userLocation?.city 
-                  ? `Showing ${hasApiKeys ? 'real' : 'sample'} events near ${userLocation.city}` 
-                  : `Please set your location to see local events`}
+                {userLocation?.city ? (
+                  <div className="flex items-center">
+                    <span className="mr-2">{`Showing ${hasApiKeys ? 'real' : 'sample'} events near`}</span>
+                    <Badge variant="outline" className="bg-primary/30 text-primary-foreground font-medium">
+                      {userLocation.city}
+                    </Badge>
+                  </div>
+                ) : (
+                  `Please set your location to see local events`
+                )}
               </CardDescription>
             </div>
             
