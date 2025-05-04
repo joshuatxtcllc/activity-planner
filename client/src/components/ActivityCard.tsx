@@ -1,5 +1,7 @@
 import { Music, Calendar, MapPin, GlassWater, Paintbrush } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import CalendarIntegration from "@/components/CalendarIntegration";
+import { ActivityType } from "@/pages/Dashboard";
 
 export interface ActivityCardProps {
   title: string;
@@ -51,6 +53,20 @@ const ActivityCard = ({
     }
   };
 
+  // Convert prop data to ActivityType for CalendarIntegration
+  const activityData: ActivityType = {
+    id: 0, // Placeholder ID
+    title,
+    isPrivate,
+    isFeatured,
+    date,
+    location,
+    tags,
+    attendees,
+    icon,
+    iconBgClass
+  };
+
   return (
     <div className="activity-card bg-dark-surface rounded-xl overflow-hidden shadow-lg transition-all duration-200 hover:translate-y-[-4px] hover:shadow-xl">
       <div className={`h-40 ${iconBgClass} flex items-center justify-center relative`}>
@@ -86,26 +102,35 @@ const ActivityCard = ({
             </span>
           ))}
         </div>
-        <div className="flex justify-between items-center">
-          <div className="flex -space-x-2">
-            {Array(Math.min(2, attendees))
-              .fill(0)
-              .map((_, index) => (
-                <Avatar key={index} className="h-8 w-8 border-2 border-dark-surface">
-                  <AvatarFallback>
-                    {String.fromCharCode(65 + index)}
-                  </AvatarFallback>
-                </Avatar>
-              ))}
-            {attendees > 2 && (
-              <div className="h-8 w-8 rounded-full border-2 border-dark-surface bg-dark flex items-center justify-center text-xs text-gray-400">
-                +{attendees - 2}
-              </div>
-            )}
+        <div className="flex flex-col gap-3">
+          <div className="flex justify-between items-center">
+            <div className="flex -space-x-2">
+              {Array(Math.min(2, attendees))
+                .fill(0)
+                .map((_, index) => (
+                  <Avatar key={index} className="h-8 w-8 border-2 border-dark-surface">
+                    <AvatarFallback>
+                      {String.fromCharCode(65 + index)}
+                    </AvatarFallback>
+                  </Avatar>
+                ))}
+              {attendees > 2 && (
+                <div className="h-8 w-8 rounded-full border-2 border-dark-surface bg-dark flex items-center justify-center text-xs text-gray-400">
+                  +{attendees - 2}
+                </div>
+              )}
+            </div>
+            <button className="text-accent hover:text-white border border-accent hover:bg-accent rounded-lg px-3 py-1 text-sm transition-colors duration-200">
+              Details
+            </button>
           </div>
-          <button className="text-accent hover:text-white border border-accent hover:bg-accent rounded-lg px-3 py-1 text-sm transition-colors duration-200">
-            Details
-          </button>
+          <div className="flex justify-end pt-2 border-t border-gray-800">
+            <CalendarIntegration 
+              activity={activityData} 
+              variant="icon" 
+              size="sm"
+            />
+          </div>
         </div>
       </div>
     </div>

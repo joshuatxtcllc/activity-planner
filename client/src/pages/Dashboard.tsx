@@ -179,6 +179,10 @@ const Dashboard = () => {
             <h2 className="text-2xl font-bold mb-6">Curated Activities</h2>
             <ActivityAggregator onSaveActivity={handleAddActivity} />
           </div>
+          
+          <div>
+            <CalendarWidget activities={activities} maxDisplay={3} />
+          </div>
         </div>
       </div>
 
