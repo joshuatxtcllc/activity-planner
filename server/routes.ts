@@ -45,15 +45,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         apikey: apiKey as string,
         latlong: `${latitude},${longitude}`,
         radius: radius as string,
-        size: "20",
-        sort: "date,asc"
+        size: "50",  // Increased from 20 to 50 for more events
+        sort: "date,asc",
+        classificationName: "music,sports,arts,film,miscellaneous", // Include more categories
+        includeTBA: "no",
+        includeTBD: "no",
+        startDateTime: new Date().toISOString().slice(0, -5) + "Z" // Only future events
       });
       
-      const response = await fetch(`${baseUrl}?${params.toString()}`);
+      console.log("Ticketmaster API URL:", `${baseUrl}?${params.toString()}`);
+      
+      const response = await fetch(`${baseUrl}?${params.toString()}`, {
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'ActivityPlanner/1.0'
+        }
+      });
       
       if (!response.ok) {
+        console.error("Ticketmaster API error status:", response.status);
+        console.error("Ticketmaster API error text:", response.statusText);
+        
+        // Try to get more detailed error information
+        let errorDetail: Record<string, unknown> = {};
+        try {
+          const jsonResponse = await response.json();
+          errorDetail = jsonResponse as Record<string, unknown>;
+          console.error("Ticketmaster error details:", JSON.stringify(errorDetail));
+        } catch (e) {
+          // If json parsing fails, continue with basic error
+        }
+        
         return res.status(response.status).json({ 
-          error: `Ticketmaster API error: ${response.statusText}` 
+          error: `Ticketmaster API error: ${response.statusText}`,
+          details: errorDetail
         });
       }
       
@@ -61,7 +86,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(data);
     } catch (error) {
       console.error("Ticketmaster proxy error:", error);
-      res.status(500).json({ error: "Failed to fetch from Ticketmaster API" });
+      res.status(500).json({ 
+        error: "Failed to fetch from Ticketmaster API",
+        details: error instanceof Error ? error.message : String(error) 
+      });
     }
   });
 
@@ -74,12 +102,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Missing required parameters" });
       }
       
-      // Updated URL with correct parameters and headers
-      const url = `https://www.eventbriteapi.com/v3/events/search/?location.latitude=${latitude}&location.longitude=${longitude}&location.within=${radius}km&expand=venue,category,ticket_availability`;
+      // Eventbrite V3 API requires a different endpoint structure and OAuth 2.0 authorization
+      const url = `https://www.eventbriteapi.com/v3/events/search/`;
       
-      const response = await fetch(url, {
+      // Build proper query params
+      const params = new URLSearchParams({
+        'location.latitude': latitude as string,
+        'location.longitude': longitude as string,
+        'location.within': `${radius}km`, 
+        'expand': 'venue,category,ticket_availability',
+        'sort_by': 'date'
+      });
+      
+      console.log("Eventbrite API URL:", `${url}?${params.toString()}`);
+      
+      const response = await fetch(`${url}?${params.toString()}`, {
         headers: {
           'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
           'Accept': 'application/json'
         }
       });
@@ -120,8 +160,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Missing required parameters" });
       }
       
-      // Updated URL with correct format for TripAdvisor API
-      const url = `https://api.content.tripadvisor.com/api/v1/location/search?key=${apiKey}&latLng=${latitude},${longitude}&category=attractions&radius=25&language=en&radiusUnit=km`;
+      // Updated URL with correct format for TripAdvisor API - adding required searchQuery parameter
+      const url = `https://api.content.tripadvisor.com/api/v1/location/search?key=${apiKey}&latLng=${latitude},${longitude}&searchQuery=attractions&category=attractions&radius=25&language=en&radiusUnit=km`;
       
       const response = await fetch(url, {
         headers: {
@@ -170,13 +210,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Missing required parameters" });
       }
       
-      const url = `https://api.content.tripadvisor.com/api/v1/location/${locationId}/attractions?key=${apiKey}&language=en`;
+      const url = `https://api.content.tripadvisor.com/api/v1/location/${locationId}/attractions?key=${apiKey}&language=en&limit=20`;
       
-      const response = await fetch(url);
+      console.log("TripAdvisor Attractions URL:", url);
+      
+      const response = await fetch(url, {
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'ActivityPlanner/1.0'
+        }
+      });
       
       if (!response.ok) {
+        console.error("TripAdvisor Attractions API error status:", response.status);
+        console.error("TripAdvisor Attractions API error text:", response.statusText);
+        
+        // Try to get more detailed error information
+        let errorDetail: Record<string, unknown> = {};
+        try {
+          const jsonResponse = await response.json();
+          errorDetail = jsonResponse as Record<string, unknown>;
+          console.error("TripAdvisor Attractions error details:", JSON.stringify(errorDetail));
+        } catch (e) {
+          // If json parsing fails, continue with basic error
+        }
+        
         return res.status(response.status).json({ 
-          error: `TripAdvisor API error: ${response.statusText}` 
+          error: `TripAdvisor API error: ${response.statusText}`,
+          details: errorDetail
         });
       }
       
@@ -184,7 +245,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(data);
     } catch (error) {
       console.error("TripAdvisor attractions proxy error:", error);
-      res.status(500).json({ error: "Failed to fetch from TripAdvisor API" });
+      res.status(500).json({ 
+        error: "Failed to fetch from TripAdvisor API",
+        details: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
