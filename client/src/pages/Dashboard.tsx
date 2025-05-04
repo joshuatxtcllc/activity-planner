@@ -7,6 +7,8 @@ import NewIdeaDialog from "@/components/NewIdeaDialog";
 import SpinningWheel from "@/components/SpinningWheel";
 import ActivityAggregator from "@/components/ActivityAggregator";
 import LocalEventsExplorer from "@/components/LocalEventsExplorer";
+import CalendarWidget from "@/components/CalendarWidget";
+import CalendarIntegration from "@/components/CalendarIntegration";
 
 export interface ActivityType {
   id: number;
