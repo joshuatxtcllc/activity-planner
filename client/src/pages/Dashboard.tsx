@@ -43,7 +43,7 @@ const Dashboard = () => {
       location: "Secret Speakeasy",
       tags: [
         { name: "Nightlife", color: "secondary" },
-        { name: "Edgy", color: "accent" },
+        { name: "Trendy", color: "accent" },
         { name: "Adults Only", color: "default" },
       ],
       attendees: 5,
@@ -73,7 +73,7 @@ const Dashboard = () => {
       location: "The Factory Warehouse",
       tags: [
         { name: "Art", color: "secondary" },
-        { name: "Edgy", color: "accent" },
+        { name: "Avant-garde", color: "accent" },
         { name: "Alternative", color: "default" },
       ],
       attendees: 7,
@@ -125,7 +125,7 @@ const Dashboard = () => {
   return (
     <section id="dashboard" className="container mx-auto px-4 py-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
-        <h1 className="text-3xl font-bold mb-4 md:mb-0">Welcome to Your Activity Planner</h1>
+        <h1 className="text-3xl font-bold mb-4 md:mb-0">Welcome to Edge Class Entertainment</h1>
         <NewIdeaDialog onAddActivity={handleAddActivity} />
       </div>
 

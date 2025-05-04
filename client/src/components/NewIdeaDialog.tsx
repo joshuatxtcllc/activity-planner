@@ -329,7 +329,7 @@ export function NewIdeaDialog({ onAddActivity }: NewIdeaDialogProps) {
                   <Input
                     value={tagInput}
                     onChange={(e) => setTagInput(e.target.value)}
-                    placeholder="Add tags (e.g., Nightlife, Edgy)"
+                    placeholder="Add tags (e.g., Nightlife, Trendy)"
                     className="bg-dark border-gray-700 focus:border-primary pl-9"
                   />
                 </div>
