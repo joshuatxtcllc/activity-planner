@@ -7,9 +7,9 @@ const Header = () => {
       <div className="container mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center">
         <div className="flex items-center mb-4 md:mb-0">
           <div className="text-2xl font-bold">
-            <span className="mr-1 text-accent">Edgy</span>
-            <span className="text-primary">&</span>
-            <span className="ml-1 text-accent">Classy</span>
+            <span className="mr-1 text-accent">Edge</span>
+            <span className="text-primary">Class</span>
+            <span className="ml-1 text-accent">Entertainment</span>
           </div>
         </div>
         
