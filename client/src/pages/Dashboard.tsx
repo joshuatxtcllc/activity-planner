@@ -59,7 +59,7 @@ const Dashboard = () => {
       tags: [
         { name: "Class", color: "secondary" },
         { name: "Cocktails", color: "default" },
-        { name: "Classy", color: "accent" },
+        { name: "Sophisticated", color: "accent" },
       ],
       attendees: 3,
       icon: "cocktail",
