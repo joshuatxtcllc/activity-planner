@@ -252,6 +252,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Proxy endpoint for Google Search (events search)
+  app.get("/api/proxy/google-search", async (req, res) => {
+    try {
+      const { q } = req.query;
+      
+      if (!q) {
+        return res.status(400).json({ error: "Search query is required" });
+      }
+      
+      // Create a search query that focuses on events
+      let searchQuery = q as string;
+      
+      // If the query doesn't explicitly mention events, add "events" to it
+      if (!searchQuery.toLowerCase().includes('event') && !searchQuery.toLowerCase().includes('show')) {
+        searchQuery = `events ${searchQuery}`;
+      }
+      
+      // In a real implementation, we would use a proper API for event searching
+      // For demonstration purposes, we'll generate sample events based on the search query
+      
+      // Extract location information from query if available
+      const locationMatch = searchQuery.match(/in ([a-z0-9 ]+)/i);
+      const location = locationMatch ? locationMatch[1] : 'your area';
+      
+      // Extract event types from query if available
+      const eventTypes = ['concert', 'festival', 'exhibition', 'show', 'game', 'workshop'];
+      const matchedTypes = eventTypes.filter(type => searchQuery.toLowerCase().includes(type));
+      const eventType = matchedTypes.length > 0 ? matchedTypes[0] : 'events';
+      
+      // Create a few sample events
+      const eventNames = [
+        `${location.charAt(0).toUpperCase() + location.slice(1)} ${eventType.charAt(0).toUpperCase() + eventType.slice(1)} Weekend`,
+        `Annual ${eventType.charAt(0).toUpperCase() + eventType.slice(1)} in ${location.charAt(0).toUpperCase() + location.slice(1)}`,
+        `${eventType.charAt(0).toUpperCase() + eventType.slice(1)} at City Center`,
+        `Local ${eventType.charAt(0).toUpperCase() + eventType.slice(1)} Showcase`,
+        `${eventType.charAt(0).toUpperCase() + eventType.slice(1)} Celebration`
+      ];
+      
+      const venues = ['City Center', 'Downtown Arena', 'Community Hall', 'Exhibition Center', 'Arts District'];
+      
+      // Get the next few dates for the coming weekend
+      const today = new Date();
+      const nextFriday = new Date(today);
+      nextFriday.setDate(today.getDate() + (5 - today.getDay() + 7) % 7);
+      
+      const nextSaturday = new Date(nextFriday);
+      nextSaturday.setDate(nextFriday.getDate() + 1);
+      
+      const nextSunday = new Date(nextSaturday);
+      nextSunday.setDate(nextSaturday.getDate() + 1);
+      
+      const dates = [
+        nextFriday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        nextSaturday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        nextSunday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      ];
+      
+      // Generate sample search results
+      const results = [];
+      
+      // Generate 5 sample events
+      for (let i = 0; i < 5; i++) {
+        results.push({
+          title: eventNames[i],
+          link: `https://example.com/events/${i}`,
+          snippet: `Join us for ${eventNames[i]} on ${dates[i % 3]} at ${venues[i % 5]} in ${location}. Great ${eventType} and activities for all ages.`,
+          formattedDate: dates[i % 3],
+          venue: venues[i % 5]
+        });
+      }
+      
+      res.json(results);
+    } catch (error) {
+      console.error('Google Search Error:', error);
+      res.status(500).json({ 
+        error: 'Failed to search for events',
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   // This is a static app for now, but these routes will be used in the future
   // when the app is expanded with dynamic functionality
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import ActivityCard from "@/components/ActivityCard";
@@ -7,6 +7,7 @@ import NewIdeaDialog from "@/components/NewIdeaDialog";
 import SpinningWheel from "@/components/SpinningWheel";
 import ActivityAggregator from "@/components/ActivityAggregator";
 import LocalEventsExplorer from "@/components/LocalEventsExplorer";
+import { GoogleEventsExplorer } from "@/components/GoogleEventsExplorer";
 import CalendarWidget from "@/components/CalendarWidget";
 import CalendarIntegration from "@/components/CalendarIntegration";
 
@@ -123,6 +124,13 @@ const Dashboard = () => {
       description: `Why not try "${activity.title}" today?`,
     });
   };
+  
+  // For the event search tabs
+  const [activeSearchTab, setActiveSearchTab] = useState<'google' | 'local'>('google');
+  
+  const handleTabSwitch = useCallback((tab: 'google' | 'local') => {
+    setActiveSearchTab(tab);
+  }, []);
 
   return (
     <section id="dashboard" className="container mx-auto px-4 py-8">
@@ -172,7 +180,50 @@ const Dashboard = () => {
         <div className="lg:col-span-1 space-y-8">
           <div>
             <h2 className="text-2xl font-bold mb-6">Find Events</h2>
-            <LocalEventsExplorer onSaveActivity={handleAddActivity} />
+            <div className="bg-dark-surface border border-gray-800 rounded-xl p-4">
+              <div>
+                <div className="border-b border-gray-800 mb-4">
+                  <ul className="flex -mb-px text-sm font-medium">
+                    <li className="mr-2">
+                      <button 
+                        onClick={() => handleTabSwitch('google')}
+                        className={`inline-block p-4 border-b-2 ${
+                          activeSearchTab === 'google' 
+                            ? 'border-accent text-accent' 
+                            : 'border-transparent hover:text-gray-300 hover:border-gray-700'
+                        } rounded-t-lg`}
+                      >
+                        Google Search
+                      </button>
+                    </li>
+                    <li className="mr-2">
+                      <button 
+                        onClick={() => handleTabSwitch('local')}
+                        className={`inline-block p-4 border-b-2 ${
+                          activeSearchTab === 'local' 
+                            ? 'border-accent text-accent' 
+                            : 'border-transparent hover:text-gray-300 hover:border-gray-700'
+                        } rounded-t-lg`}
+                      >
+                        Local Events
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+                <div className="tab-content">
+                  {activeSearchTab === 'google' && (
+                    <div className="tab-pane">
+                      <GoogleEventsExplorer onSaveActivity={handleAddActivity} />
+                    </div>
+                  )}
+                  {activeSearchTab === 'local' && (
+                    <div className="tab-pane">
+                      <LocalEventsExplorer onSaveActivity={handleAddActivity} />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
           
           <div>

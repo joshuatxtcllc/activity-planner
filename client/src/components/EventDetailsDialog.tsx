@@ -1,28 +1,8 @@
 import { ActivityType } from "@/pages/Dashboard";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { 
-  CalendarDays, 
-  MapPin, 
-  Users, 
-  Music, 
-  Palette, 
-  Utensils,
-  Clock,
-  ExternalLink,
-  Plus,
-  Ticket,
-  Navigation
-} from "lucide-react";
-import { Separator } from "@/components/ui/separator";
+import { CalendarDays, Clock, ExternalLink, MapPin, Music, Palette, Plus, User, Utensils } from "lucide-react";
+import CalendarIntegration from "./CalendarIntegration";
 
 interface EventDetailsDialogProps {
   event: ActivityType | null;
@@ -52,60 +32,87 @@ export function EventDetailsDialog({
     }
   };
 
+  const isExternalEvent = !!event.eventUrl;
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="bg-dark text-white border-gray-700 max-w-xl">
         <DialogHeader>
+          <DialogTitle className="text-xl font-bold">{event.title}</DialogTitle>
+          <DialogDescription className="text-gray-400">
+            {event.date}
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-6 mt-2">
           <div className="flex items-start gap-4">
-            <div className={`p-3 rounded-lg ${event.iconBgClass}`}>
+            <div className={`rounded-lg p-3 ${event.iconBgClass} flex items-center justify-center`}>
               {getActivityIcon()}
             </div>
-            <div>
-              <DialogTitle className="text-xl">{event.title}</DialogTitle>
-              <DialogDescription>
-                <div className="flex gap-2 flex-wrap mt-2">
-                  {event.tags.map((tag, i) => (
-                    <Badge 
-                      key={i} 
-                      variant={tag.color === "accent" ? "destructive" : tag.color === "secondary" ? "secondary" : "outline"}
-                    >
-                      {tag.name}
-                    </Badge>
-                  ))}
-                  {event.isFeatured && <Badge variant="secondary">Featured</Badge>}
-                </div>
-              </DialogDescription>
+            <div className="flex-1">
+              <div className="flex items-center text-gray-300 mb-2">
+                <MapPin className="h-4 w-4 mr-2 text-gray-400" />
+                <span>{event.location}</span>
+              </div>
+              
+              <div className="flex items-center text-gray-300 mb-3">
+                <CalendarDays className="h-4 w-4 mr-2 text-gray-400" />
+                <span>{event.date}</span>
+              </div>
+              
+              <div className="flex flex-wrap gap-2 mb-4">
+                {event.tags.map((tag, idx) => (
+                  <span
+                    key={idx}
+                    className={`text-xs px-2 py-1 rounded-full ${
+                      tag.color === "secondary"
+                        ? "bg-secondary/20 text-secondary"
+                        : tag.color === "accent"
+                        ? "bg-accent/20 text-accent"
+                        : "bg-gray-700 text-gray-300"
+                    }`}
+                  >
+                    {tag.name}
+                  </span>
+                ))}
+              </div>
+              
+              <div className="flex items-center text-gray-400 text-sm">
+                <User className="h-4 w-4 mr-1" />
+                <span>{event.attendees} attending</span>
+              </div>
             </div>
           </div>
-        </DialogHeader>
-
-        <div className="grid gap-4 py-4">
-          <div className="flex items-center gap-2 text-gray-400">
-            <CalendarDays className="h-5 w-5 text-accent" />
-            <span>{event.date}</span>
-          </div>
           
-          <div className="flex items-start gap-2 text-gray-400">
-            <MapPin className="h-5 w-5 min-w-[20px] text-accent" />
-            <span>{event.location}</span>
-          </div>
+          {isExternalEvent && (
+            <div className="border border-gray-800 rounded-md p-4 bg-black bg-opacity-30">
+              <h4 className="font-medium mb-2">Event Information</h4>
+              <p className="text-sm text-gray-400 mb-3">
+                This is an external event from a third-party source. Click the button below to visit the official event page for more details and ticket information.
+              </p>
+              <div className="flex space-x-2">
+                <Button
+                  variant="outline"
+                  className="text-xs"
+                  onClick={() => {
+                    if (event.eventUrl) {
+                      window.open(event.eventUrl, '_blank');
+                    }
+                  }}
+                >
+                  <ExternalLink className="h-3 w-3 mr-1" />
+                  Visit Event Page
+                </Button>
+                
+                <CalendarIntegration 
+                  activity={event}
+                  variant="button"
+                  size="sm"
+                />
+              </div>
+            </div>
+          )}
           
-          <div className="flex items-center gap-2 text-gray-400">
-            <Users className="h-5 w-5 text-accent" />
-            <span>{event.attendees} {event.attendees === 1 ? 'person' : 'people'} interested</span>
-          </div>
-
-          {/* Add a placeholder for event description */}
-          <div className="mt-2">
-            <h4 className="text-md font-medium mb-2">About this event</h4>
-            <p className="text-gray-400 text-sm">
-              This is an {event.isPrivate ? 'private' : 'public'} event featuring {event.tags.map(t => t.name).join(', ')}. 
-              Join others in experiencing this unique opportunity in {event.location.split(',')[0]}.
-            </p>
-          </div>
-
-          <Separator className="my-2" />
-
           {/* Details and important information */}
           <div>
             <h4 className="text-md font-medium mb-2">Details</h4>
@@ -120,33 +127,6 @@ export function EventDetailsDialog({
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Ticket and Directions buttons */}
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          {event.eventUrl && (
-            <Button
-              onClick={() => window.open(event.eventUrl, '_blank')}
-              className="w-full gap-1 bg-gradient-to-r from-primary to-primary-600"
-            >
-              <Ticket className="h-4 w-4" />
-              Purchase Tickets
-            </Button>
-          )}
-          
-          {event.coordinates && (
-            <Button
-              onClick={() => {
-                const { latitude, longitude } = event.coordinates!;
-                window.open(`https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`, '_blank');
-              }}
-              variant="secondary"
-              className="w-full gap-1"
-            >
-              <Navigation className="h-4 w-4" />
-              Get Directions
-            </Button>
-          )}
         </div>
 
         <DialogFooter className="flex flex-col sm:flex-row gap-2">
