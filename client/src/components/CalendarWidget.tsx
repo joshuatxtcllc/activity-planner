@@ -213,7 +213,7 @@ export default function CalendarWidget({ activities, maxDisplay = 3 }: CalendarW
                   }`}
                 >
                   <span className="text-xs">
-                    {activity.date?.split(', ')[1]?.split(' ')[1] || ""} {/* Added null checks */}
+                    {activity.date ? activity.date.split(', ')[1]?.split(' ')[1] || "" : ""}
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
