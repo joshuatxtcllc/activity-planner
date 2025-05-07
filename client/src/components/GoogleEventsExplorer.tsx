@@ -140,7 +140,14 @@ export function GoogleEventsExplorer({ onSaveActivity }: GoogleEventsExplorerPro
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-sm font-medium text-gray-400">Search Results</h3>
+        <div className="flex flex-row justify-between items-center">
+          <h3 className="text-sm font-medium text-gray-400">Search Results</h3>
+          
+          <div className="flex items-center gap-1 text-xs text-gray-500">
+            <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+            <span>Using demo data</span>
+          </div>
+        </div>
         
         {isLoading ? (
           // Skeleton loading UI
@@ -161,81 +168,102 @@ export function GoogleEventsExplorer({ onSaveActivity }: GoogleEventsExplorerPro
             ))}
           </div>
         ) : searchResults.length > 0 ? (
-          <div className="space-y-3">
-            {searchResults.map((activity) => (
-              <Card 
-                key={activity.id}
-                className="bg-dark-surface border-gray-800 hover:border-gray-700 transition-colors cursor-pointer"
-                onClick={() => handleOpenDetails(activity)}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <div className={`rounded-lg p-2 ${activity.iconBgClass} w-10 h-10 flex items-center justify-center`}>
-                      {activity.icon === "music" ? (
-                        <div className="h-5 w-5 text-primary">🎵</div>
-                      ) : activity.icon === "cocktail" ? (
-                        <div className="h-5 w-5 text-secondary">🍸</div>
-                      ) : (
-                        <div className="h-5 w-5 text-accent">🎨</div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-sm font-medium mb-1">{activity.title}</h4>
-                      <div className="flex items-center text-xs text-gray-400 mb-1">
-                        <Calendar className="h-3 w-3 mr-1 flex-shrink-0" />
-                        <span className="truncate">{activity.date}</span>
+          <>
+            <div className="space-y-3">
+              {searchResults.map((activity) => (
+                <Card 
+                  key={activity.id}
+                  className="bg-dark-surface border-gray-800 hover:border-gray-700 transition-colors cursor-pointer"
+                  onClick={() => handleOpenDetails(activity)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className={`rounded-lg p-2 ${activity.iconBgClass} w-10 h-10 flex items-center justify-center`}>
+                        {activity.icon === "music" ? (
+                          <div className="h-5 w-5 text-primary">🎵</div>
+                        ) : activity.icon === "cocktail" ? (
+                          <div className="h-5 w-5 text-secondary">🍸</div>
+                        ) : (
+                          <div className="h-5 w-5 text-accent">🎨</div>
+                        )}
                       </div>
-                      <div className="flex items-center text-xs text-gray-400 mb-2">
-                        <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
-                        <span className="truncate">{activity.location}</span>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-medium mb-1">{activity.title}</h4>
+                        <div className="flex items-center text-xs text-gray-400 mb-1">
+                          <Calendar className="h-3 w-3 mr-1 flex-shrink-0" />
+                          <span className="truncate">{activity.date}</span>
+                        </div>
+                        <div className="flex items-center text-xs text-gray-400 mb-2">
+                          <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
+                          <span className="truncate">{activity.location}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {activity.tags.map((tag, idx) => (
+                            <span
+                              key={idx}
+                              className={`text-xs px-1.5 py-0.5 rounded-full ${
+                                tag.color === "secondary"
+                                  ? "bg-secondary/20 text-secondary"
+                                  : tag.color === "accent"
+                                  ? "bg-accent/20 text-accent"
+                                  : "bg-gray-700 text-gray-300"
+                              }`}
+                            >
+                              {tag.name}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                      <div className="flex flex-wrap gap-1">
-                        {activity.tags.map((tag, idx) => (
-                          <span
-                            key={idx}
-                            className={`text-xs px-1.5 py-0.5 rounded-full ${
-                              tag.color === "secondary"
-                                ? "bg-secondary/20 text-secondary"
-                                : tag.color === "accent"
-                                ? "bg-accent/20 text-accent"
-                                : "bg-gray-700 text-gray-300"
-                            }`}
-                          >
-                            {tag.name}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 w-8 p-0 rounded-full"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSaveActivity(activity);
-                      }}
-                    >
-                      <span className="sr-only">Save</span>
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="h-4 w-4"
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 p-0 rounded-full"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSaveActivity(activity);
+                        }}
                       >
-                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                        <polyline points="17 21 17 13 7 13 7 21" />
-                        <polyline points="7 3 7 8 15 8" />
-                      </svg>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                        <span className="sr-only">Save</span>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="h-4 w-4"
+                        >
+                          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                          <polyline points="17 21 17 13 7 13 7 21" />
+                          <polyline points="7 3 7 8 15 8" />
+                        </svg>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            
+            <div className="bg-dark rounded-lg border border-gray-800 p-4">
+              <h4 className="text-sm font-medium mb-2">Want real Google search results?</h4>
+              <p className="text-xs text-gray-400 mb-3">
+                This app is using demo data for search results. To use the actual Google Custom Search API:
+              </p>
+              <ol className="list-decimal list-inside text-xs text-gray-400 space-y-1 ml-2 mb-3">
+                <li>Create a <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">Google Cloud Platform</a> account</li>
+                <li>Create a new project and enable the "Custom Search API"</li>
+                <li>Create API credentials to get an API key</li>
+                <li>Go to the <a href="https://programmablesearchengine.google.com/controlpanel/create" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">Programmable Search Engine</a> page to create a search engine</li>
+                <li>Add your API key and Search Engine ID to the environment variables</li>
+              </ol>
+              <div className="text-xs bg-gray-900 p-2 rounded font-mono mb-3">
+                <code>GOOGLE_SEARCH_API_KEY=your_api_key</code><br />
+                <code>GOOGLE_SEARCH_ENGINE_ID=your_search_engine_id</code>
+              </div>
+              <p className="text-xs text-gray-500">Note: Google Custom Search API has a free tier that allows 100 search queries per day.</p>
+            </div>
+          </>
         ) : (
           <div className="text-center py-10 border border-dashed border-gray-700 rounded-lg">
             <Info className="h-12 w-12 mx-auto mb-3 text-gray-500" />

@@ -252,7 +252,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Proxy endpoint for Google Search (events search)
+  // Google Custom Search JSON API for events
   app.get("/api/proxy/google-search", async (req, res) => {
     try {
       const { q } = req.query;
@@ -269,61 +269,138 @@ export async function registerRoutes(app: Express): Promise<Server> {
         searchQuery = `events ${searchQuery}`;
       }
       
-      // In a real implementation, we would use a proper API for event searching
-      // For demonstration purposes, we'll generate sample events based on the search query
+      // Get API key from environment variables
+      const apiKey = process.env.GOOGLE_SEARCH_API_KEY;
+      const searchEngineId = process.env.GOOGLE_SEARCH_ENGINE_ID;
       
-      // Extract location information from query if available
-      const locationMatch = searchQuery.match(/in ([a-z0-9 ]+)/i);
-      const location = locationMatch ? locationMatch[1] : 'your area';
-      
-      // Extract event types from query if available
-      const eventTypes = ['concert', 'festival', 'exhibition', 'show', 'game', 'workshop'];
-      const matchedTypes = eventTypes.filter(type => searchQuery.toLowerCase().includes(type));
-      const eventType = matchedTypes.length > 0 ? matchedTypes[0] : 'events';
-      
-      // Create a few sample events
-      const eventNames = [
-        `${location.charAt(0).toUpperCase() + location.slice(1)} ${eventType.charAt(0).toUpperCase() + eventType.slice(1)} Weekend`,
-        `Annual ${eventType.charAt(0).toUpperCase() + eventType.slice(1)} in ${location.charAt(0).toUpperCase() + location.slice(1)}`,
-        `${eventType.charAt(0).toUpperCase() + eventType.slice(1)} at City Center`,
-        `Local ${eventType.charAt(0).toUpperCase() + eventType.slice(1)} Showcase`,
-        `${eventType.charAt(0).toUpperCase() + eventType.slice(1)} Celebration`
-      ];
-      
-      const venues = ['City Center', 'Downtown Arena', 'Community Hall', 'Exhibition Center', 'Arts District'];
-      
-      // Get the next few dates for the coming weekend
-      const today = new Date();
-      const nextFriday = new Date(today);
-      nextFriday.setDate(today.getDate() + (5 - today.getDay() + 7) % 7);
-      
-      const nextSaturday = new Date(nextFriday);
-      nextSaturday.setDate(nextFriday.getDate() + 1);
-      
-      const nextSunday = new Date(nextSaturday);
-      nextSunday.setDate(nextSaturday.getDate() + 1);
-      
-      const dates = [
-        nextFriday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        nextSaturday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        nextSunday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      ];
-      
-      // Generate sample search results
-      const results = [];
-      
-      // Generate 5 sample events
-      for (let i = 0; i < 5; i++) {
-        results.push({
-          title: eventNames[i],
-          link: `https://example.com/events/${i}`,
-          snippet: `Join us for ${eventNames[i]} on ${dates[i % 3]} at ${venues[i % 5]} in ${location}. Great ${eventType} and activities for all ages.`,
-          formattedDate: dates[i % 3],
-          venue: venues[i % 5]
-        });
+      if (!apiKey || !searchEngineId) {
+        console.log("Google Search API credentials missing. Using fallback data.");
+        
+        // If API keys are missing, use fallback data
+        // Extract location information from query if available
+        const locationMatch = searchQuery.match(/in ([a-z0-9 ]+)/i);
+        const location = locationMatch ? locationMatch[1] : 'your area';
+        
+        // Extract event types from query if available
+        const eventTypes = ['concert', 'festival', 'exhibition', 'show', 'game', 'workshop'];
+        const matchedTypes = eventTypes.filter(type => searchQuery.toLowerCase().includes(type));
+        const eventType = matchedTypes.length > 0 ? matchedTypes[0] : 'events';
+        
+        // Create a few sample events
+        const eventNames = [
+          `${location.charAt(0).toUpperCase() + location.slice(1)} ${eventType.charAt(0).toUpperCase() + eventType.slice(1)} Weekend`,
+          `Annual ${eventType.charAt(0).toUpperCase() + eventType.slice(1)} in ${location.charAt(0).toUpperCase() + location.slice(1)}`,
+          `${eventType.charAt(0).toUpperCase() + eventType.slice(1)} at City Center`,
+          `Local ${eventType.charAt(0).toUpperCase() + eventType.slice(1)} Showcase`,
+          `${eventType.charAt(0).toUpperCase() + eventType.slice(1)} Celebration`
+        ];
+        
+        const venues = ['City Center', 'Downtown Arena', 'Community Hall', 'Exhibition Center', 'Arts District'];
+        
+        // Get the next few dates for the coming weekend
+        const today = new Date();
+        const nextFriday = new Date(today);
+        nextFriday.setDate(today.getDate() + (5 - today.getDay() + 7) % 7);
+        
+        const nextSaturday = new Date(nextFriday);
+        nextSaturday.setDate(nextFriday.getDate() + 1);
+        
+        const nextSunday = new Date(nextSaturday);
+        nextSunday.setDate(nextSaturday.getDate() + 1);
+        
+        const dates = [
+          nextFriday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          nextSaturday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          nextSunday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        ];
+        
+        // Generate 5 sample events
+        const results = [];
+        for (let i = 0; i < 5; i++) {
+          results.push({
+            title: eventNames[i],
+            link: `https://example.com/events/${i}`,
+            snippet: `Join us for ${eventNames[i]} on ${dates[i % 3]} at ${venues[i % 5]} in ${location}. Great ${eventType} and activities for all ages.`,
+            formattedDate: dates[i % 3],
+            venue: venues[i % 5]
+          });
+        }
+        
+        return res.json(results);
       }
       
-      res.json(results);
+      // Build Google Custom Search API URL
+      const googleApiUrl = new URL('https://www.googleapis.com/customsearch/v1');
+      googleApiUrl.searchParams.append('key', apiKey);
+      googleApiUrl.searchParams.append('cx', searchEngineId);
+      googleApiUrl.searchParams.append('q', searchQuery);
+      
+      // We can use Google's date restriction feature to get recent results
+      googleApiUrl.searchParams.append('dateRestrict', 'w2'); // Last 2 weeks
+      
+      // You can customize further with parameters like num (results per page) or start (pagination)
+      googleApiUrl.searchParams.append('num', '10');
+      
+      console.log(`Making request to Google Custom Search API: ${googleApiUrl.toString()}`);
+      
+      const response = await fetch(googleApiUrl.toString());
+      
+      if (!response.ok) {
+        console.error(`Google API error: ${response.status} ${response.statusText}`);
+        let errorText = '';
+        try {
+          const errorJson = await response.json();
+          errorText = JSON.stringify(errorJson);
+          console.error('Error details:', errorText);
+        } catch (e) {
+          errorText = await response.text();
+          console.error('Error text:', errorText);
+        }
+        
+        throw new Error(`Google Search API error: ${response.status} ${errorText}`);
+      }
+      
+      // Define the expected response structure
+      interface GoogleSearchResponse {
+        items?: Array<{
+          title?: string;
+          link?: string;
+          snippet?: string;
+          pagemap?: {
+            cse_image?: Array<{ src?: string }>;
+          };
+        }>;
+      }
+      
+      const data = await response.json() as GoogleSearchResponse;
+      
+      if (!data.items || data.items.length === 0) {
+        console.log("No search results found from Google API");
+        return res.json([]);
+      }
+      
+      // Transform Google Search results to our format
+      const transformedResults = data.items.map(item => {
+        // Try to extract date information from the snippet
+        const dateMatch = item.snippet?.match(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2}(,? \d{4})?/i);
+        const formattedDate = dateMatch ? dateMatch[0] : "Upcoming";
+        
+        // Try to extract venue/location information
+        const venueMatch = item.snippet?.match(/at ([^,.]+)/i);
+        const venue = venueMatch ? venueMatch[1] : "Various Locations";
+        
+        return {
+          title: item.title || "Event",
+          link: item.link || "#",
+          snippet: item.snippet || "",
+          formattedDate,
+          venue,
+          // If the API returns images, you can include them
+          image: item.pagemap?.cse_image?.[0]?.src
+        };
+      });
+      
+      res.json(transformedResults);
     } catch (error) {
       console.error('Google Search Error:', error);
       res.status(500).json({ 
