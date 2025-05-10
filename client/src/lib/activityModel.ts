@@ -22,6 +22,7 @@ export interface EnhancedActivityType {
   eventUrl?: string;
   contactInfo?: string;
   rating?: number;
+  date?: string; // Add date field for event date display
   tags: Array<{
     name: string;
     color: "secondary" | "accent" | "default";
@@ -132,17 +133,19 @@ export function upgradeToEnhancedActivity(activity: any, category?: CategoryType
     detectedCategory = "ENTERTAINMENT";
   }
   
+  const seasons = detectSeasonality(activity);
+  
   return createEnhancedActivity({
     ...activity,
     category: detectedCategory,
     costLevel: detectCostLevel(activity),
     timeCommitment: detectTimeCommitment(activity),
-    seasonality: detectSeasonality(activity) || ["ALL_YEAR"]
+    seasonality: seasons || ["ALL_YEAR"]
   });
 }
 
 // Helper function to detect category from text
-function detectCategoryFromText(text: string): CategoryType | null {
+function detectCategoryFromText(text: string): CategoryType | undefined {
   const lowerText = text.toLowerCase();
   
   // Keywords mapping for each category
@@ -166,7 +169,7 @@ function detectCategoryFromText(text: string): CategoryType | null {
     }
   }
   
-  return null;
+  return undefined;
 }
 
 // Helper function to detect cost level from activity
@@ -224,7 +227,7 @@ function detectTimeCommitment(activity: any): TimeCommitmentType {
 }
 
 // Helper function to detect seasonality from activity
-function detectSeasonality(activity: any): SeasonType[] | null {
+function detectSeasonality(activity: any): SeasonType[] | undefined {
   const title = (activity.title || '').toLowerCase();
   const description = (activity.description || '').toLowerCase();
   const text = title + ' ' + description;
@@ -246,5 +249,5 @@ function detectSeasonality(activity: any): SeasonType[] | null {
     }
   }
   
-  return detectedSeasons.length > 0 ? detectedSeasons : null;
+  return detectedSeasons.length > 0 ? detectedSeasons : undefined;
 }
