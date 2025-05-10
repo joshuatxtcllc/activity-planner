@@ -7,8 +7,8 @@ import { CategoryType, CostLevelType, TimeCommitmentType } from '@/lib/activityC
 import { Button } from '@/components/ui/button';
 import { Filter, RefreshCw } from 'lucide-react';
 
-// Import sample activities 
-import { sampleActivities } from '@/lib/sampleActivities';
+// Import activity transformation helper
+import { upgradeToEnhancedActivity } from '@/lib/activityModel';
 
 export default function ActivityWheelPage() {
   const { toast } = useToast();
@@ -25,12 +25,38 @@ export default function ActivityWheelPage() {
     times: []
   });
 
-  // Fetch activities on component mount
+  // Fetch activities from API on component mount
   useEffect(() => {
-    // You would typically fetch from API or local storage here
-    setActivities(sampleActivities);
-    setFilteredActivities(sampleActivities);
-  }, []);
+    const fetchActivities = async () => {
+      try {
+        // Fetch activities from the API
+        const response = await fetch('/api/activities');
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch activities');
+        }
+        
+        const data = await response.json();
+        
+        // Transform regular activities to enhanced activities
+        const enhancedActivities = data.map((activity: any) => 
+          upgradeToEnhancedActivity(activity)
+        );
+        
+        setActivities(enhancedActivities);
+        setFilteredActivities(enhancedActivities);
+      } catch (error) {
+        console.error('Error fetching activities:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load activities. Please try again later.",
+          variant: "destructive"
+        });
+      }
+    };
+    
+    fetchActivities();
+  }, [toast]);
 
   // Apply filters when filter state changes
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import ActivityCard from "@/components/ActivityCard";
@@ -36,54 +36,36 @@ export interface ActivityType {
 const Dashboard = () => {
   const { toast } = useToast();
   const [activeFilter, setActiveFilter] = useState<string>("All Activities");
-  const [activities, setActivities] = useState<ActivityType[]>([
-    {
-      id: 1,
-      title: "Burlesque Night",
-      isPrivate: true,
-      isFeatured: true,
-      date: "Sat, Aug 28 • 8:00 PM",
-      location: "Secret Speakeasy",
-      tags: [
-        { name: "Nightlife", color: "secondary" },
-        { name: "Trendy", color: "accent" },
-        { name: "Adults Only", color: "default" },
-      ],
-      attendees: 5,
-      icon: "music",
-      iconBgClass: "bg-primary bg-opacity-30",
-    },
-    {
-      id: 2,
-      title: "Cocktail Masterclass",
-      isPrivate: false,
-      date: "Fri, Sep 3 • 7:30 PM",
-      location: "Velvet Lounge Downtown",
-      tags: [
-        { name: "Class", color: "secondary" },
-        { name: "Cocktails", color: "default" },
-        { name: "Sophisticated", color: "accent" },
-      ],
-      attendees: 3,
-      icon: "cocktail",
-      iconBgClass: "bg-secondary bg-opacity-30",
-    },
-    {
-      id: 3,
-      title: "Underground Art Show",
-      isPrivate: false,
-      date: "Sun, Sep 12 • 6:00 PM",
-      location: "The Factory Warehouse",
-      tags: [
-        { name: "Art", color: "secondary" },
-        { name: "Avant-garde", color: "accent" },
-        { name: "Alternative", color: "default" },
-      ],
-      attendees: 7,
-      icon: "art",
-      iconBgClass: "bg-accent bg-opacity-30",
-    },
-  ]);
+  const [activities, setActivities] = useState<ActivityType[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  // Fetch activities from the API
+  useEffect(() => {
+    const fetchActivities = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('/api/activities');
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch activities');
+        }
+        
+        const data = await response.json();
+        setActivities(data);
+      } catch (error) {
+        console.error('Error fetching activities:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load activities. Please try again later.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchActivities();
+  }, [toast]);
 
   const handleFilterClick = (filter: string) => {
     setActiveFilter(filter);
@@ -100,21 +82,57 @@ const Dashboard = () => {
     });
   };
 
-  const handleAddActivity = (activity: any) => {
-    const newActivity: ActivityType = {
-      id: activities.length + 1,
-      title: activity.title,
-      isPrivate: activity.isPrivate,
-      isFeatured: activity.isFeatured,
-      date: activity.date,
-      location: activity.location,
-      tags: activity.tags,
-      attendees: 0, // Start with 0 attendees for new activities
-      icon: activity.icon,
-      iconBgClass: activity.iconBgClass,
-    };
-    
-    setActivities([...activities, newActivity]);
+  const handleAddActivity = async (activity: any) => {
+    try {
+      // Prepare the activity data
+      const activityData = {
+        title: activity.title,
+        description: activity.description || "",
+        category: activity.category || "ENTERTAINMENT",
+        costLevel: activity.costLevel || "MEDIUM",
+        timeCommitment: activity.timeCommitment || "MEDIUM",
+        location: activity.location,
+        isPrivate: activity.isPrivate || false,
+        isFeatured: activity.isFeatured || false,
+        seasonality: activity.seasonality || ["ALL_YEAR"],
+        tags: activity.tags || [],
+        attendees: 0, // Start with 0 attendees for new activities
+        icon: activity.icon || "music",
+        iconBgClass: activity.iconBgClass || "bg-primary/10",
+        date: activity.date || null
+      };
+      
+      // Send the activity data to the server
+      const response = await fetch('/api/activities', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(activityData),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to save activity');
+      }
+      
+      // Get the new activity from the response
+      const newActivity = await response.json();
+      
+      // Update the state with the new activity
+      setActivities(prev => [...prev, newActivity]);
+      
+      toast({
+        title: "Success",
+        description: `Activity "${activity.title}" has been saved.`,
+      });
+    } catch (error) {
+      console.error('Error saving activity:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save activity. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleActivitySelected = (activity: ActivityType) => {
@@ -159,10 +177,26 @@ const Dashboard = () => {
 
       {/* Spinning Wheel */}
       <div className="my-10 py-6 px-4 bg-dark-surface rounded-xl border border-gray-800">
-        <SpinningWheel 
-          activities={activities} 
-          onActivitySelected={handleActivitySelected} 
-        />
+        {activities.length > 0 ? (
+          <SpinningWheel 
+            activities={activities.map(act => ({
+              ...act,
+              id: typeof act.id === 'string' ? parseInt(act.id) : act.id,
+              category: act.category || 'ENTERTAINMENT',
+              costLevel: act.costLevel || 'MEDIUM',
+              timeCommitment: act.timeCommitment || 'SHORT',
+              description: act.description || '',
+              seasonality: act.seasonality || ['ALL_YEAR'],
+              dateAdded: act.dateAdded || new Date(),
+              timesSelected: act.timesSelected || 0
+            }))} 
+            onActivitySelected={handleActivitySelected} 
+          />
+        ) : (
+          <div className="text-center py-20">
+            <p className="text-gray-500 mb-4">No activities available. Add your first activity!</p>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-12">
