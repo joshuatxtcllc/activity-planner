@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/Dashboard";
 import Calendar from "@/pages/Calendar";
+import ActivityCategories from "@/pages/ActivityCategories";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
@@ -13,6 +14,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Dashboard}/>
       <Route path="/calendar" component={Calendar}/>
+      <Route path="/categories" component={ActivityCategories}/>
       <Route component={NotFound} />
     </Switch>
   );
