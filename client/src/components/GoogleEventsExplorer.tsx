@@ -144,10 +144,12 @@ export function GoogleEventsExplorer({ onSaveActivity }: GoogleEventsExplorerPro
         <div className="flex flex-row justify-between items-center">
           <h3 className="text-sm font-medium text-gray-400">Search Results</h3>
           
-          <div className="flex items-center gap-1 text-xs text-gray-500">
-            <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
-            <span>Using demo data</span>
-          </div>
+          {searchResults.length > 0 && (
+            <div className="flex items-center gap-1 text-xs text-gray-500">
+              <div className={`w-2 h-2 rounded-full ${isUsingRealData ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+              <span>{isUsingRealData ? 'Using Google Search API' : 'Using demo data'}</span>
+            </div>
+          )}
         </div>
         
         {isLoading ? (

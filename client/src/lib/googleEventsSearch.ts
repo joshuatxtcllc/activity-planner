@@ -14,6 +14,7 @@ interface GoogleSearchResult {
   formattedDate?: string;
   venue?: string;
   image?: string;
+  usingFallbackData?: boolean;
 }
 
 /**
@@ -83,8 +84,9 @@ function transformGoogleResultsToActivities(results: GoogleSearchResult[]): Acti
 
 /**
  * Searches for events using Google Search (via our backend proxy)
+ * @returns Object with activities and a flag indicating if real data is being used
  */
-export async function searchGoogleEvents(params: GoogleSearchParams): Promise<ActivityType[]> {
+export async function searchGoogleEvents(params: GoogleSearchParams): Promise<{ activities: ActivityType[], isUsingRealData: boolean }> {
   try {
     console.log("Searching Google for events:", params);
     
@@ -104,22 +106,28 @@ export async function searchGoogleEvents(params: GoogleSearchParams): Promise<Ac
     
     if (!response.ok) {
       console.error("Error response from Google search API:", response.status);
-      return [];
+      return { activities: [], isUsingRealData: false };
     }
     
     const results: GoogleSearchResult[] = await response.json();
     
     if (!results || results.length === 0) {
       console.log("No Google search results found");
-      return [];
+      return { activities: [], isUsingRealData: false };
     }
     
     console.log(`Found ${results.length} Google search results`);
     
+    // Check if we're using fallback data
+    const isUsingRealData = !results[0]?.usingFallbackData;
+    
     // Transform results to ActivityType objects
-    return transformGoogleResultsToActivities(results);
+    return { 
+      activities: transformGoogleResultsToActivities(results),
+      isUsingRealData
+    };
   } catch (error) {
     console.error("Error searching Google for events:", error);
-    return [];
+    return { activities: [], isUsingRealData: false };
   }
 }

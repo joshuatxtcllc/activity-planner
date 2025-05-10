@@ -314,7 +314,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           nextSunday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
         ];
         
-        // Generate 5 sample events
+        // Generate 5 sample events with a fallback data flag
         const results = [];
         for (let i = 0; i < 5; i++) {
           results.push({
@@ -322,15 +322,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
             link: `https://example.com/events/${i}`,
             snippet: `Join us for ${eventNames[i]} on ${dates[i % 3]} at ${venues[i % 5]} in ${location}. Great ${eventType} and activities for all ages.`,
             formattedDate: dates[i % 3],
-            venue: venues[i % 5]
+            venue: venues[i % 5],
+            // Add a flag to indicate this is fallback data
+            usingFallbackData: true
           });
         }
         
         return res.json(results);
       }
       
-      // Clean the search engine ID (remove any HTML or script tags if they were accidentally included)
-      const cleanSearchEngineId = searchEngineId.replace(/<[^>]*>/g, '').trim();
+      // Extract the actual search engine ID from any HTML code
+      // The cx ID should be in the format "123456789012345678:abcdefghij"
+      let cleanSearchEngineId = searchEngineId;
+      
+      // Check if it's wrapped in HTML (from Google's embed code)
+      const cxMatch = searchEngineId.match(/cx=([^"&\s]+)/);
+      if (cxMatch && cxMatch[1]) {
+        cleanSearchEngineId = cxMatch[1];
+        console.log("Extracted search engine ID:", cleanSearchEngineId);
+      }
       
       // Build Google Custom Search API URL
       const googleApiUrl = new URL('https://www.googleapis.com/customsearch/v1');
