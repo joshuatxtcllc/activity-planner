@@ -6,6 +6,7 @@ import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/Dashboard";
 import Calendar from "@/pages/Calendar";
 import ActivityCategories from "@/pages/ActivityCategories";
+import ActivityWheel from "@/pages/ActivityWheel";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
@@ -15,6 +16,7 @@ function Router() {
       <Route path="/" component={Dashboard}/>
       <Route path="/calendar" component={Calendar}/>
       <Route path="/categories" component={ActivityCategories}/>
+      <Route path="/wheel" component={ActivityWheel}/>
       <Route component={NotFound} />
     </Switch>
   );

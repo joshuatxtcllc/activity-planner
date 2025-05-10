@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { Home, Lightbulb, Calendar, User, LayoutGrid } from "lucide-react";
+import { Home, Lightbulb, Calendar, User, LayoutGrid, Loader2 } from "lucide-react";
 
 const Header = () => {
   return (
@@ -44,6 +44,14 @@ const Header = () => {
                 <div className="nav-item px-3 py-2 text-light hover:text-accent transition-colors duration-200 flex items-center relative cursor-pointer after:content-[''] after:absolute after:w-0 after:h-0.5 after:bg-accent after:bottom-[-4px] after:left-0 hover:after:w-full after:transition-all after:duration-300">
                   <LayoutGrid className="h-5 w-5 mr-1" />
                   Categories
+                </div>
+              </Link>
+            </li>
+            <li>
+              <Link href="/wheel">
+                <div className="nav-item px-3 py-2 text-light hover:text-accent transition-colors duration-200 flex items-center relative cursor-pointer after:content-[''] after:absolute after:w-0 after:h-0.5 after:bg-accent after:bottom-[-4px] after:left-0 hover:after:w-full after:transition-all after:duration-300">
+                  <Loader2 className="h-5 w-5 mr-1" />
+                  Activity Wheel
                 </div>
               </Link>
             </li>
