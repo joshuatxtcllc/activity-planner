@@ -79,11 +79,35 @@ export class MemStorage implements IStorage {
     const id = this.activityIdCounter++;
     const now = new Date();
     
-    // Ensure all fields match Activity type (simplified for brevity)
+    // Create a properly formatted activity object with defaults for required fields
     const activity: Activity = { 
-      id, 
-      ...insertActivity,
-      createdAt: now
+      id,
+      title: insertActivity.title,
+      description: insertActivity.description || "",
+      category: insertActivity.category || "ENTERTAINMENT",
+      costLevel: insertActivity.costLevel || "MEDIUM",
+      timeCommitment: insertActivity.timeCommitment || "MEDIUM",
+      location: insertActivity.location || "",
+      isPrivate: insertActivity.isPrivate ?? false,
+      isFeatured: insertActivity.isFeatured ?? false,
+      seasonality: insertActivity.seasonality || ["ALL_YEAR"],
+      tags: insertActivity.tags || [],
+      imageUrl: insertActivity.imageUrl || null,
+      eventUrl: insertActivity.eventUrl || null,
+      contactInfo: insertActivity.contactInfo || null,
+      rating: insertActivity.rating || null,
+      date: insertActivity.date || null,
+      coordinates: insertActivity.coordinates || null,
+      venue: insertActivity.venue || null,
+      venueName: insertActivity.venueName || null,
+      isUserAdded: insertActivity.isUserAdded ?? true,
+      externalIds: insertActivity.externalIds || null,
+      dateAdded: now,
+      lastSelected: null,
+      timesSelected: 0,
+      attendees: insertActivity.attendees || 0,
+      icon: insertActivity.icon || "music",
+      iconBgClass: insertActivity.iconBgClass || "bg-primary/10"
     };
     
     this.activities.set(id, activity);

@@ -29,6 +29,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create new activity
+  app.post("/api/activities", async (req, res) => {
+    try {
+      const activity = req.body;
+      
+      // Basic validation
+      if (!activity || !activity.title || !activity.location) {
+        return res.status(400).json({ message: "Invalid activity data. Title and location are required." });
+      }
+      
+      const newActivity = await storage.createActivity(activity);
+      res.status(201).json(newActivity);
+    } catch (error) {
+      console.error("Error creating activity:", error);
+      res.status(500).json({ message: "Failed to create activity" });
+    }
+  });
+
+  // Update activity
+  app.put("/api/activities/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const activity = req.body;
+      
+      // Check if activity exists
+      const existingActivity = await storage.getActivity(id);
+      if (!existingActivity) {
+        return res.status(404).json({ message: "Activity not found" });
+      }
+      
+      // Perform update
+      const updatedActivity = await storage.updateActivity(id, activity);
+      res.json(updatedActivity);
+    } catch (error) {
+      console.error("Error updating activity:", error);
+      res.status(500).json({ message: "Failed to update activity" });
+    }
+  });
+
+  // Delete activity
+  app.delete("/api/activities/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      // Check if activity exists
+      const existingActivity = await storage.getActivity(id);
+      if (!existingActivity) {
+        return res.status(404).json({ message: "Activity not found" });
+      }
+      
+      // Delete the activity
+      await storage.deleteActivity(id);
+      res.status(204).end();
+    } catch (error) {
+      console.error("Error deleting activity:", error);
+      res.status(500).json({ message: "Failed to delete activity" });
+    }
+  });
+
+  // Mark activity as selected (increment selection count)
+  app.post("/api/activities/:id/select", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      // Check if activity exists
+      const existingActivity = await storage.getActivity(id);
+      if (!existingActivity) {
+        return res.status(404).json({ message: "Activity not found" });
+      }
+      
+      // Update the activity's selection count
+      const updatedActivity = await storage.updateActivitySelectionCount(id);
+      res.json(updatedActivity);
+    } catch (error) {
+      console.error("Error updating activity selection count:", error);
+      res.status(500).json({ message: "Failed to update activity selection count" });
+    }
+  });
+
   // Proxy endpoints for third-party APIs to avoid CORS issues
 
   // Proxy endpoint for Ticketmaster API
