@@ -1,0 +1,698 @@
+// Activity Wheel App Enhancements
+
+// ============================================================
+// 1. ACTIVITY CATEGORIES IMPLEMENTATION
+// ============================================================
+
+const activityCategories = {
+  'INDOOR': {
+    label: 'Indoor Activities',
+    icon: 'home'
+  },
+  'OUTDOOR': {
+    label: 'Outdoor Adventures',
+    icon: 'tree'
+  },
+  'FOOD_DRINK': {
+    label: 'Food & Drink',
+    icon: 'utensils'
+  },
+  'ENTERTAINMENT': {
+    label: 'Entertainment',
+    icon: 'ticket'
+  },
+  'CULTURE': {
+    label: 'Culture & Learning',
+    icon: 'book'
+  },
+  'ACTIVE': {
+    label: 'Active & Sports',
+    icon: 'running'
+  },
+  'RELAXING': {
+    label: 'Relaxing & Wellness',
+    icon: 'spa'
+  },
+  'SOCIAL': {
+    label: 'Social Events',
+    icon: 'users'
+  }
+};
+
+// Cost levels for activities
+const costLevels = {
+  'FREE': {
+    label: 'Free',
+    icon: 'hand-holding'
+  },
+  'LOW': {
+    label: '$',
+    icon: 'dollar-sign'
+  },
+  'MEDIUM': {
+    label: '$$',
+    icon: 'dollar-sign'
+  },
+  'HIGH': {
+    label: '$$$',
+    icon: 'dollar-sign'
+  }
+};
+
+// Time commitment levels
+const timeCommitments = {
+  'QUICK': {
+    label: '< 1 hour',
+    icon: 'clock'
+  },
+  'SHORT': {
+    label: '1-2 hours',
+    icon: 'clock'
+  },
+  'MEDIUM': {
+    label: 'Half day',
+    icon: 'clock'
+  },
+  'LONG': {
+    label: 'Full day',
+    icon: 'clock'
+  },
+  'MULTI_DAY': {
+    label: 'Multiple days',
+    icon: 'calendar'
+  }
+};
+
+// ============================================================
+// 2. ENHANCED ACTIVITY MODEL
+// ============================================================
+
+class EnhancedActivity {
+  constructor({
+    id,
+    name,
+    description,
+    category,
+    costLevel,
+    timeCommitment,
+    location,
+    isUserAdded = true,
+    eventbriteId = null,
+    ticketmasterId = null,
+    seasonality = [], // e.g., ['SPRING', 'SUMMER']
+    imageUrl = '',
+    url = '',
+    contactInfo = '',
+    rating = 0,
+    tags = []
+  }) {
+    this.id = id || generateUniqueId();
+    this.name = name;
+    this.description = description;
+    this.category = category;
+    this.costLevel = costLevel;
+    this.timeCommitment = timeCommitment;
+    this.location = location;
+    this.isUserAdded = isUserAdded;
+    this.eventbriteId = eventbriteId;
+    this.ticketmasterId = ticketmasterId;
+    this.seasonality = seasonality;
+    this.imageUrl = imageUrl;
+    this.url = url;
+    this.contactInfo = contactInfo;
+    this.rating = rating;
+    this.tags = tags;
+    this.dateAdded = new Date();
+    this.lastSelected = null;
+    this.timesSelected = 0;
+  }
+
+  markAsSelected() {
+    this.lastSelected = new Date();
+    this.timesSelected += 1;
+  }
+
+  // Check if activity is appropriate for current season
+  isInSeason() {
+    if (this.seasonality.length === 0) return true; // No seasonality restrictions
+    
+    const currentSeason = getCurrentSeason();
+    return this.seasonality.includes(currentSeason);
+  }
+}
+
+// Helper function to determine current season
+function getCurrentSeason() {
+  const month = new Date().getMonth();
+  if (month >= 2 && month <= 4) return 'SPRING';
+  if (month >= 5 && month <= 7) return 'SUMMER';
+  if (month >= 8 && month <= 10) return 'FALL';
+  return 'WINTER';
+}
+
+// Helper function to generate unique ID
+function generateUniqueId() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+}
+
+// ============================================================
+// 3. WEEKLY SCHEDULER IMPLEMENTATION
+// ============================================================
+
+class ActivityScheduler {
+  constructor() {
+    this.scheduledActivities = [];
+    this.reminderSettings = {
+      enabled: true,
+      daysBefore: 1,
+      notificationType: 'push' // or 'email'
+    };
+  }
+
+  // Schedule an activity
+  scheduleActivity(activity, date, notes = '') {
+    const scheduledActivity = {
+      id: generateUniqueId(),
+      activityId: activity.id,
+      activityName: activity.name,
+      scheduledDate: date,
+      notes: notes,
+      isCompleted: false,
+      reminderSent: false
+    };
+    
+    this.scheduledActivities.push(scheduledActivity);
+    this.sortSchedule();
+    
+    if (this.reminderSettings.enabled) {
+      this.scheduleReminder(scheduledActivity);
+    }
+    
+    return scheduledActivity;
+  }
+  
+  // Get upcoming activities
+  getUpcomingActivities(days = 7) {
+    const now = new Date();
+    const futureDate = new Date();
+    futureDate.setDate(now.getDate() + days);
+    
+    return this.scheduledActivities.filter(item => {
+      const itemDate = new Date(item.scheduledDate);
+      return itemDate >= now && itemDate <= futureDate && !item.isCompleted;
+    });
+  }
+  
+  // Mark activity as completed
+  completeActivity(scheduledActivityId, rating = 0, review = '') {
+    const activity = this.scheduledActivities.find(a => a.id === scheduledActivityId);
+    if (activity) {
+      activity.isCompleted = true;
+      activity.completedDate = new Date();
+      activity.rating = rating;
+      activity.review = review;
+      return true;
+    }
+    return false;
+  }
+  
+  // Helper to sort schedule by date
+  sortSchedule() {
+    this.scheduledActivities.sort((a, b) => {
+      return new Date(a.scheduledDate) - new Date(b.scheduledDate);
+    });
+  }
+  
+  // Schedule a reminder for an activity
+  scheduleReminder(scheduledActivity) {
+    // Implementation depends on your notification system
+    // This is a placeholder for the concept
+    const reminderDate = new Date(scheduledActivity.scheduledDate);
+    reminderDate.setDate(reminderDate.getDate() - this.reminderSettings.daysBefore);
+    
+    // Here you would integrate with a notification service
+    console.log(`Reminder set for ${scheduledActivity.activityName} on ${reminderDate.toLocaleDateString()}`);
+  }
+  
+  // Get statistics about completed activities
+  getActivityStats() {
+    const completed = this.scheduledActivities.filter(a => a.isCompleted);
+    
+    if (completed.length === 0) {
+      return {
+        totalCompleted: 0,
+        averageRating: 0,
+        categoryBreakdown: {},
+        costBreakdown: {}
+      };
+    }
+    
+    // This would need to be integrated with your activity database
+    // to pull full activity details for analysis
+    return {
+      totalCompleted: completed.length,
+      averageRating: completed.reduce((sum, a) => sum + (a.rating || 0), 0) / completed.length,
+      // Additional statistics would be calculated here
+    };
+  }
+}
+
+// ============================================================
+// 4. CURATED ACTIVITY SUGGESTIONS (BASED ON OUR DISCUSSION)
+// ============================================================
+
+const curatedActivities = [
+  // Conversation & Connection
+  new EnhancedActivity({
+    name: "Interest Discovery Session",
+    description: "Set aside time to discuss each other's interests, past hobbies, and activities you'd like to try together.",
+    category: "INDOOR",
+    costLevel: "FREE",
+    timeCommitment: "SHORT",
+    location: "Home",
+    tags: ["conversation", "connection", "planning"]
+  }),
+  
+  // Seasonal Activities
+  new EnhancedActivity({
+    name: "Apple Picking & Cider Tasting",
+    description: "Visit a local orchard for apple picking followed by cider tasting.",
+    category: "OUTDOOR",
+    costLevel: "LOW",
+    timeCommitment: "MEDIUM",
+    location: "Local orchard",
+    seasonality: ["FALL"],
+    tags: ["seasonal", "food", "nature"]
+  }),
+  
+  new EnhancedActivity({
+    name: "Holiday Market Exploration",
+    description: "Visit a local holiday market to find unique gifts and enjoy seasonal treats.",
+    category: "OUTDOOR",
+    costLevel: "LOW",
+    timeCommitment: "MEDIUM",
+    location: "City center",
+    seasonality: ["WINTER"],
+    tags: ["seasonal", "shopping", "culture"]
+  }),
+  
+  new EnhancedActivity({
+    name: "Flower Festival",
+    description: "Attend a local flower festival or visit botanical gardens during peak bloom season.",
+    category: "OUTDOOR",
+    costLevel: "LOW",
+    timeCommitment: "MEDIUM",
+    location: "Botanical gardens",
+    seasonality: ["SPRING"],
+    tags: ["seasonal", "nature", "photography"]
+  }),
+  
+  new EnhancedActivity({
+    name: "Outdoor Concert",
+    description: "Attend an outdoor concert or music festival.",
+    category: "ENTERTAINMENT",
+    costLevel: "MEDIUM",
+    timeCommitment: "MEDIUM",
+    location: "Park or venue",
+    seasonality: ["SUMMER"],
+    tags: ["music", "outdoors", "social"]
+  }),
+  
+  // Day Trips
+  new EnhancedActivity({
+    name: "Neighboring Town Exploration",
+    description: "Visit a nearby town you've never been to before and explore local shops, restaurants, and attractions.",
+    category: "OUTDOOR",
+    costLevel: "MEDIUM",
+    timeCommitment: "LONG",
+    location: "Nearby town",
+    tags: ["travel", "exploration", "shopping"]
+  }),
+  
+  // Outdoor Adventures
+  new EnhancedActivity({
+    name: "Scenic Hiking Trail",
+    description: "Find a local trail and enjoy nature together.",
+    category: "OUTDOOR",
+    costLevel: "FREE",
+    timeCommitment: "MEDIUM",
+    location: "Local trails",
+    tags: ["nature", "exercise", "photography"]
+  }),
+  
+  new EnhancedActivity({
+    name: "Kayak or Canoe Trip",
+    description: "Rent kayaks or canoes and explore a local waterway.",
+    category: "OUTDOOR",
+    costLevel: "MEDIUM",
+    timeCommitment: "MEDIUM",
+    location: "Local lake or river",
+    seasonality: ["SPRING", "SUMMER", "FALL"],
+    tags: ["water", "adventure", "nature"]
+  }),
+  
+  // Sporting Events
+  new EnhancedActivity({
+    name: "Minor League Sports Game",
+    description: "Attend a local minor league baseball, hockey, or other sports game.",
+    category: "ENTERTAINMENT",
+    costLevel: "MEDIUM",
+    timeCommitment: "MEDIUM",
+    location: "Local stadium",
+    tags: ["sports", "social", "entertainment"]
+  }),
+  
+  // Food & Drink Experiences
+  new EnhancedActivity({
+    name: "Wine Tasting Tour",
+    description: "Visit local wineries for tastings and learn about wine production.",
+    category: "FOOD_DRINK",
+    costLevel: "MEDIUM",
+    timeCommitment: "LONG",
+    location: "Local wineries",
+    tags: ["wine", "tasting", "tour"]
+  }),
+  
+  new EnhancedActivity({
+    name: "Brewery Tour",
+    description: "Tour a local brewery and sample craft beers.",
+    category: "FOOD_DRINK",
+    costLevel: "MEDIUM",
+    timeCommitment: "MEDIUM",
+    location: "Local brewery",
+    tags: ["beer", "tasting", "tour"]
+  }),
+  
+  new EnhancedActivity({
+    name: "Food Festival",
+    description: "Attend a local food festival to try a variety of cuisines and treats.",
+    category: "FOOD_DRINK",
+    costLevel: "MEDIUM",
+    timeCommitment: "MEDIUM",
+    location: "City center or park",
+    tags: ["food", "festival", "social"]
+  }),
+  
+  // Live Performances
+  new EnhancedActivity({
+    name: "Comedy Club Night",
+    description: "Attend a show at a local comedy club.",
+    category: "ENTERTAINMENT",
+    costLevel: "MEDIUM",
+    timeCommitment: "SHORT",
+    location: "Comedy club",
+    tags: ["comedy", "nightlife", "entertainment"]
+  }),
+  
+  new EnhancedActivity({
+    name: "Live Music at Small Venue",
+    description: "Check out a band or musician at a small local venue.",
+    category: "ENTERTAINMENT",
+    costLevel: "LOW",
+    timeCommitment: "SHORT",
+    location: "Local music venue",
+    tags: ["music", "nightlife", "culture"]
+  }),
+  
+  new EnhancedActivity({
+    name: "Local Theater Production",
+    description: "Attend a play, musical, or other performance at a local theater.",
+    category: "ENTERTAINMENT",
+    costLevel: "MEDIUM",
+    timeCommitment: "MEDIUM",
+    location: "Local theater",
+    tags: ["theater", "arts", "culture"]
+  }),
+  
+  // Market Activities
+  new EnhancedActivity({
+    name: "Farmers Market Cooking Challenge",
+    description: "Visit a farmers market, select unusual ingredients, and challenge each other to cook something with them.",
+    category: "FOOD_DRINK",
+    costLevel: "LOW",
+    timeCommitment: "LONG",
+    location: "Farmers market, then home",
+    tags: ["food", "cooking", "challenge"]
+  }),
+  
+  // Photography
+  new EnhancedActivity({
+    name: "Photography Walk",
+    description: "Take a walk around your neighborhood or a local area with the goal of capturing interesting photos.",
+    category: "OUTDOOR",
+    costLevel: "FREE",
+    timeCommitment: "MEDIUM",
+    location: "Neighborhood or scenic area",
+    tags: ["photography", "creative", "walking"]
+  }),
+  
+  // Volunteering
+  new EnhancedActivity({
+    name: "Volunteer Together",
+    description: "Find a local organization where you can volunteer together for a day.",
+    category: "SOCIAL",
+    costLevel: "FREE",
+    timeCommitment: "MEDIUM",
+    location: "Local charity or organization",
+    tags: ["volunteering", "community", "meaningful"]
+  }),
+  
+  // Theme Nights
+  new EnhancedActivity({
+    name: "International Cuisine Night",
+    description: "Pick a country, research its cuisine, and spend the evening cooking a traditional meal together.",
+    category: "FOOD_DRINK",
+    costLevel: "LOW",
+    timeCommitment: "MEDIUM",
+    location: "Home",
+    tags: ["cooking", "culture", "learning"]
+  }),
+  
+  new EnhancedActivity({
+    name: "Classic Movie Marathon",
+    description: "Select a series of classic films or a director's works and have a movie marathon with themed snacks.",
+    category: "ENTERTAINMENT",
+    costLevel: "LOW",
+    timeCommitment: "LONG",
+    location: "Home",
+    tags: ["movies", "relaxing", "culture"]
+  }),
+  
+  new EnhancedActivity({
+    name: "Board Game Night",
+    description: "Dust off old favorites or try new board games together.",
+    category: "INDOOR",
+    costLevel: "LOW",
+    timeCommitment: "MEDIUM",
+    location: "Home",
+    tags: ["games", "competition", "fun"]
+  }),
+  
+  // Learning Together
+  new EnhancedActivity({
+    name: "Pottery Class",
+    description: "Take a one-time pottery class and create something together.",
+    category: "CULTURE",
+    costLevel: "MEDIUM",
+    timeCommitment: "MEDIUM",
+    location: "Local studio",
+    tags: ["art", "learning", "creative"]
+  }),
+  
+  new EnhancedActivity({
+    name: "Dancing Lesson",
+    description: "Take a beginner dance class together - salsa, swing, ballroom, etc.",
+    category: "ACTIVE",
+    costLevel: "MEDIUM",
+    timeCommitment: "SHORT",
+    location: "Dance studio",
+    tags: ["dance", "learning", "active"]
+  }),
+  
+  new EnhancedActivity({
+    name: "Stargazing Night",
+    description: "Find a dark spot away from city lights, bring blankets and hot drinks, and stargaze together.",
+    category: "OUTDOOR",
+    costLevel: "FREE",
+    timeCommitment: "SHORT",
+    location: "Dark sky area",
+    seasonality: ["SPRING", "SUMMER", "FALL"],
+    tags: ["nature", "relaxing", "romantic"]
+  })
+];
+
+// ============================================================
+// 5. WHEEL ENHANCEMENT - FILTERING IMPLEMENTATION
+// ============================================================
+
+class EnhancedActivityWheel {
+  constructor(activities = []) {
+    this.allActivities = activities;
+    this.filteredActivities = [...activities];
+    this.filters = {
+      categories: [],
+      costLevels: [],
+      timeCommitments: [],
+      seasons: [],
+      tags: []
+    };
+  }
+  
+  // Add activity
+  addActivity(activity) {
+    this.allActivities.push(activity);
+    this.applyFilters(); // Re-apply filters to update filtered list
+  }
+  
+  // Add multiple activities
+  addActivities(activities) {
+    this.allActivities = [...this.allActivities, ...activities];
+    this.applyFilters();
+  }
+  
+  // Set filter
+  setFilter(filterType, values) {
+    if (this.filters.hasOwnProperty(filterType)) {
+      this.filters[filterType] = values;
+      this.applyFilters();
+    }
+  }
+  
+  // Clear all filters
+  clearFilters() {
+    for (const key in this.filters) {
+      this.filters[key] = [];
+    }
+    this.filteredActivities = [...this.allActivities];
+  }
+  
+  // Apply all current filters
+  applyFilters() {
+    this.filteredActivities = this.allActivities.filter(activity => {
+      // Category filter
+      if (this.filters.categories.length > 0 && !this.filters.categories.includes(activity.category)) {
+        return false;
+      }
+      
+      // Cost level filter
+      if (this.filters.costLevels.length > 0 && !this.filters.costLevels.includes(activity.costLevel)) {
+        return false;
+      }
+      
+      // Time commitment filter
+      if (this.filters.timeCommitments.length > 0 && !this.filters.timeCommitments.includes(activity.timeCommitment)) {
+        return false;
+      }
+      
+      // Season filter
+      if (this.filters.seasons.length > 0) {
+        if (activity.seasonality.length === 0) {
+          // Activity has no seasonal restrictions
+          if (this.filters.seasons.includes('ANY')) {
+            return true;
+          }
+        } else if (!activity.seasonality.some(s => this.filters.seasons.includes(s))) {
+          return false;
+        }
+      }
+      
+      // Tags filter (match any tag)
+      if (this.filters.tags.length > 0 && !activity.tags.some(tag => this.filters.tags.includes(tag))) {
+        return false;
+      }
+      
+      return true;
+    });
+  }
+  
+  // Get activity count
+  getActivityCount() {
+    return this.filteredActivities.length;
+  }
+  
+  // Spin the wheel and get random activity
+  spinWheel() {
+    if (this.filteredActivities.length === 0) {
+      return null;
+    }
+    
+    const randomIndex = Math.floor(Math.random() * this.filteredActivities.length);
+    const selectedActivity = this.filteredActivities[randomIndex];
+    
+    // Update activity statistics
+    const actualActivity = this.allActivities.find(a => a.id === selectedActivity.id);
+    if (actualActivity) {
+      actualActivity.markAsSelected();
+    }
+    
+    return selectedActivity;
+  }
+  
+  // Get activities that haven't been selected recently
+  getFreshActivities(days = 30) {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+    
+    return this.filteredActivities.filter(activity => 
+      !activity.lastSelected || new Date(activity.lastSelected) < cutoffDate
+    );
+  }
+  
+  // Get most selected activities
+  getMostSelectedActivities(limit = 10) {
+    return [...this.allActivities]
+      .sort((a, b) => b.timesSelected - a.timesSelected)
+      .slice(0, limit);
+  }
+}
+
+// ============================================================
+// 6. USAGE EXAMPLE
+// ============================================================
+
+// Initialize the system
+function initializeActivitySystem() {
+  // Create the wheel with curated activities
+  const activityWheel = new EnhancedActivityWheel(curatedActivities);
+  
+  // Create the scheduler
+  const scheduler = new ActivityScheduler();
+  
+  // Example usage
+  console.log(`Loaded ${activityWheel.getActivityCount()} curated activities`);
+  
+  // Spin for weekend activity with outdoor filter
+  activityWheel.setFilter('categories', ['OUTDOOR']);
+  const weekendActivity = activityWheel.spinWheel();
+  
+  if (weekendActivity) {
+    console.log(`Weekend suggestion: ${weekendActivity.name}`);
+    
+    // Schedule for next Saturday
+    const nextSaturday = new Date();
+    nextSaturday.setDate(nextSaturday.getDate() + (6 - nextSaturday.getDay() + 7) % 7);
+    
+    scheduler.scheduleActivity(weekendActivity, nextSaturday, "First activity from our new system!");
+  }
+  
+  // Check upcoming schedule
+  const upcoming = scheduler.getUpcomingActivities();
+  console.log(`You have ${upcoming.length} activities scheduled for the next week`);
+  
+  return {
+    wheel: activityWheel,
+    scheduler: scheduler
+  };
+}
+
+// Export the system for use in the main app
+export {
+  EnhancedActivity,
+  EnhancedActivityWheel,
+  ActivityScheduler,
+  activityCategories,
+  costLevels,
+  timeCommitments,
+  curatedActivities,
+  initializeActivitySystem
+};
