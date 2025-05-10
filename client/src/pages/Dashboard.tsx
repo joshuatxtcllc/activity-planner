@@ -14,10 +14,15 @@ import CalendarIntegration from "@/components/CalendarIntegration";
 export interface ActivityType {
   id: number;
   title: string;
+  description?: string;
+  category?: string;
+  costLevel?: string;
+  timeCommitment?: string;
   isPrivate: boolean;
   isFeatured?: boolean;
   date: string;
   location: string;
+  seasonality?: string[];
   tags: Array<{
     name: string;
     color: "secondary" | "accent" | "default";
@@ -27,6 +32,9 @@ export interface ActivityType {
   iconBgClass: string;
   eventUrl?: string;
   venueName?: string;
+  dateAdded?: Date;
+  lastSelected?: Date | null;
+  timesSelected?: number;
   coordinates?: {
     latitude: number;
     longitude: number;
@@ -180,17 +188,61 @@ const Dashboard = () => {
         {activities.length > 0 ? (
           <SpinningWheel 
             activities={activities.map(act => ({
-              ...act,
               id: typeof act.id === 'string' ? parseInt(act.id) : act.id,
+              title: act.title,
+              description: act.description || '',
               category: act.category || 'ENTERTAINMENT',
               costLevel: act.costLevel || 'MEDIUM',
               timeCommitment: act.timeCommitment || 'SHORT',
-              description: act.description || '',
+              location: act.location,
+              isPrivate: act.isPrivate,
+              isFeatured: act.isFeatured || false,
               seasonality: act.seasonality || ['ALL_YEAR'],
+              imageUrl: act.imageUrl || undefined,
+              eventUrl: act.eventUrl || undefined,
+              contactInfo: act.contactInfo || undefined,
+              rating: act.rating || undefined,
+              date: act.date,
+              tags: act.tags,
+              coordinates: act.coordinates,
+              venue: act.venue || undefined,
+              venueName: act.venueName || undefined,
+              isUserAdded: true,
+              externalIds: undefined,
               dateAdded: act.dateAdded || new Date(),
-              timesSelected: act.timesSelected || 0
+              lastSelected: act.lastSelected || null,
+              timesSelected: act.timesSelected || 0,
+              attendees: act.attendees,
+              icon: act.icon,
+              iconBgClass: act.iconBgClass
             }))} 
-            onActivitySelected={handleActivitySelected} 
+            onActivitySelected={(enhancedActivity) => {
+              // Convert enhanced activity back to regular activity type
+              const activity: ActivityType = {
+                id: typeof enhancedActivity.id === 'string' ? parseInt(enhancedActivity.id) : enhancedActivity.id as number,
+                title: enhancedActivity.title,
+                description: enhancedActivity.description,
+                category: enhancedActivity.category,
+                costLevel: enhancedActivity.costLevel,
+                timeCommitment: enhancedActivity.timeCommitment,
+                isPrivate: enhancedActivity.isPrivate,
+                isFeatured: enhancedActivity.isFeatured,
+                date: enhancedActivity.date || '',
+                location: enhancedActivity.location,
+                seasonality: enhancedActivity.seasonality,
+                tags: enhancedActivity.tags,
+                attendees: enhancedActivity.attendees,
+                icon: enhancedActivity.icon,
+                iconBgClass: enhancedActivity.iconBgClass,
+                eventUrl: enhancedActivity.eventUrl,
+                venueName: enhancedActivity.venueName,
+                dateAdded: enhancedActivity.dateAdded,
+                lastSelected: enhancedActivity.lastSelected,
+                timesSelected: enhancedActivity.timesSelected,
+                coordinates: enhancedActivity.coordinates
+              };
+              handleActivitySelected(activity);
+            }} 
           />
         ) : (
           <div className="text-center py-20">

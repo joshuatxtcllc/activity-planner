@@ -71,19 +71,60 @@ export default function ActivityWheelPage() {
     setFilteredActivities(filtered);
   }, [filters, activities]);
 
-  const handleActivitySelected = (activity: EnhancedActivityType) => {
-    // Update activity with selected state
-    const updatedActivity = markActivityAsSelected(activity);
-    
-    // Update the activity in our local state
-    setActivities(prev => 
-      prev.map(a => a.id === updatedActivity.id ? updatedActivity : a)
-    );
-    
-    toast({
-      title: "Activity Selected",
-      description: `You've selected "${activity.title}". Enjoy your adventure!`,
-    });
+  const handleActivitySelected = async (activity: EnhancedActivityType) => {
+    try {
+      // Call API to update the selection count
+      const activityId = typeof activity.id === 'string' ? parseInt(activity.id) : activity.id;
+      
+      if (typeof activityId === 'number') {
+        const response = await fetch(`/api/activities/${activityId}/select`, {
+          method: 'POST',
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to update activity selection count');
+        }
+        
+        // Get the updated activity from the response
+        const updatedActivity = await response.json();
+        const enhancedUpdatedActivity = upgradeToEnhancedActivity(updatedActivity);
+        
+        // Update the activity in our local state
+        setActivities(prev => 
+          prev.map(a => a.id === enhancedUpdatedActivity.id ? enhancedUpdatedActivity : a)
+        );
+        
+        // Also update filtered activities
+        setFilteredActivities(prev => 
+          prev.map(a => a.id === enhancedUpdatedActivity.id ? enhancedUpdatedActivity : a)
+        );
+      } else {
+        // Fallback to client-side update if we can't determine the ID
+        const updatedActivity = markActivityAsSelected(activity);
+        
+        // Update the activity in our local state
+        setActivities(prev => 
+          prev.map(a => a.id === updatedActivity.id ? updatedActivity : a)
+        );
+        
+        // Also update filtered activities
+        setFilteredActivities(prev => 
+          prev.map(a => a.id === updatedActivity.id ? updatedActivity : a)
+        );
+      }
+      
+      toast({
+        title: "Activity Selected",
+        description: `You've selected "${activity.title}". Enjoy your adventure!`,
+      });
+    } catch (error) {
+      console.error('Error updating activity selection count:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update activity selection count.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleFilterChange = (newFilters: {
