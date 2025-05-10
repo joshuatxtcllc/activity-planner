@@ -22,6 +22,7 @@ export function GoogleEventsExplorer({ onSaveActivity }: GoogleEventsExplorerPro
   const [isLoading, setIsLoading] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<ActivityType | null>(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [isUsingRealData, setIsUsingRealData] = useState(false);
 
   // Sample popular searches for quick selection
   const popularSearches = [

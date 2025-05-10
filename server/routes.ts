@@ -329,10 +329,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(results);
       }
       
+      // Clean the search engine ID (remove any HTML or script tags if they were accidentally included)
+      const cleanSearchEngineId = searchEngineId.replace(/<[^>]*>/g, '').trim();
+      
       // Build Google Custom Search API URL
       const googleApiUrl = new URL('https://www.googleapis.com/customsearch/v1');
       googleApiUrl.searchParams.append('key', apiKey);
-      googleApiUrl.searchParams.append('cx', searchEngineId);
+      googleApiUrl.searchParams.append('cx', cleanSearchEngineId);
       googleApiUrl.searchParams.append('q', searchQuery);
       
       // We can use Google's date restriction feature to get recent results
@@ -341,7 +344,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // You can customize further with parameters like num (results per page) or start (pagination)
       googleApiUrl.searchParams.append('num', '10');
       
-      console.log(`Making request to Google Custom Search API: ${googleApiUrl.toString()}`);
+      console.log(`Making request to Google Custom Search API with query: ${searchQuery}`);
       
       const response = await fetch(googleApiUrl.toString());
       
