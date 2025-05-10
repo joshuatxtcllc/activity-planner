@@ -51,12 +51,45 @@ export function GoogleEventsExplorer({ onSaveActivity }: GoogleEventsExplorerPro
     setIsLoading(true);
     
     try {
-      const activities = await searchGoogleEvents({
+      // Use the updated searchGoogleEvents function that returns an object with activities and isUsingRealData
+      const searchParams = {
         query,
         location: location || undefined,
         date: "this weekend" // Default to this weekend if not specified in query
-      });
+      };
       
+      console.log("Searching Google for events:", searchParams);
+      
+      // Make API request to our backend proxy
+      const response = await fetch(`/api/proxy/google-search?q=${encodeURIComponent(
+        (searchParams.location ? `${searchParams.query} in ${searchParams.location}` : searchParams.query) + 
+        (searchParams.date ? ` ${searchParams.date}` : '')
+      )}`);
+      
+      if (!response.ok) {
+        console.error("Error response from Google search API:", response.status);
+        setSearchResults([]);
+        setIsUsingRealData(false);
+        throw new Error(`API error: ${response.status}`);
+      }
+      
+      const results = await response.json();
+      
+      if (!results || results.length === 0) {
+        console.log("No Google search results found");
+        setSearchResults([]);
+        setIsUsingRealData(false);
+        return;
+      }
+      
+      console.log(`Found ${results.length} Google search results`);
+      
+      // Check if we're using fallback data
+      const isUsingRealApiData = !results[0]?.usingFallbackData;
+      setIsUsingRealData(isUsingRealApiData);
+      
+      // Transform Google Search results into ActivityType objects
+      const activities = transformGoogleResultsToActivities(results);
       setSearchResults(activities);
       
       if (activities.length === 0) {
@@ -67,6 +100,7 @@ export function GoogleEventsExplorer({ onSaveActivity }: GoogleEventsExplorerPro
       }
     } catch (error) {
       console.error("Error searching for events:", error);
+      setIsUsingRealData(false);
       toast({
         title: "Search Error",
         description: "There was a problem searching for events. Please try again.",
@@ -76,6 +110,69 @@ export function GoogleEventsExplorer({ onSaveActivity }: GoogleEventsExplorerPro
       setIsLoading(false);
     }
   };
+  
+  // Helper function to transform Google search results into ActivityType objects
+  function transformGoogleResultsToActivities(results: any[]): ActivityType[] {
+    if (!results || results.length === 0) return [];
+    
+    return results.map((result, index) => {
+      // Extract location from snippet if possible
+      const locationMatch = result.snippet?.match(/at\s+([^,.]+)/i);
+      const dateMatch = result.snippet?.match(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2}/i);
+      
+      // Generate a random icon
+      const icons = ["music", "cocktail", "art"] as const;
+      const icon = icons[Math.floor(Math.random() * icons.length)];
+      
+      // Generate icon background class based on icon
+      const iconBgClass = icon === "music" 
+        ? "bg-primary bg-opacity-30" 
+        : icon === "cocktail" 
+        ? "bg-secondary bg-opacity-30" 
+        : "bg-accent bg-opacity-30";
+      
+      // Extract tags from title and snippet
+      const extractTags = (text: string) => {
+        const commonEventTypes = [
+          "concert", "festival", "show", "exhibition", "party", 
+          "fair", "market", "performance", "game", "match",
+          "music", "art", "food", "drink", "sports", "comedy"
+        ];
+        
+        const foundTags: string[] = [];
+        
+        commonEventTypes.forEach(type => {
+          if (text.toLowerCase().includes(type) && !foundTags.includes(type)) {
+            foundTags.push(type);
+          }
+        });
+        
+        return foundTags;
+      };
+      
+      const allTags = [...extractTags(result.title || ""), ...extractTags(result.snippet || "")];
+      // Use Array.from to convert Set to Array for better compatibility
+      const uniqueTags = Array.from(new Set(allTags)).slice(0, 3); // Limit to 3 tags
+      
+      const tagColors = ["secondary", "accent", "default"] as const;
+      
+      return {
+        id: index + 1000, // Use 1000+ range to avoid conflicts with existing activities
+        title: result.title || "Event",
+        isPrivate: false,
+        date: result.formattedDate || (dateMatch ? dateMatch[0] : "Upcoming Event"),
+        location: result.venue || (locationMatch ? locationMatch[1] : "Various Locations"),
+        tags: uniqueTags.map((tag, i) => ({
+          name: tag.charAt(0).toUpperCase() + tag.slice(1), // Capitalize first letter
+          color: tagColors[i % tagColors.length]
+        })),
+        attendees: Math.floor(Math.random() * 20) + 5, // Random number of attendees
+        icon,
+        iconBgClass,
+        eventUrl: result.link
+      };
+    });
+  }
 
   const handleSaveActivity = (activity: ActivityType) => {
     onSaveActivity(activity);
@@ -248,24 +345,26 @@ export function GoogleEventsExplorer({ onSaveActivity }: GoogleEventsExplorerPro
               ))}
             </div>
             
-            <div className="bg-dark rounded-lg border border-gray-800 p-4">
-              <h4 className="text-sm font-medium mb-2">Want real Google search results?</h4>
-              <p className="text-xs text-gray-400 mb-3">
-                This app is using demo data for search results. To use the actual Google Custom Search API:
-              </p>
-              <ol className="list-decimal list-inside text-xs text-gray-400 space-y-1 ml-2 mb-3">
-                <li>Create a <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">Google Cloud Platform</a> account</li>
-                <li>Create a new project and enable the "Custom Search API"</li>
-                <li>Create API credentials to get an API key</li>
-                <li>Go to the <a href="https://programmablesearchengine.google.com/controlpanel/create" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">Programmable Search Engine</a> page to create a search engine</li>
-                <li>Add your API key and Search Engine ID to the environment variables</li>
-              </ol>
-              <div className="text-xs bg-gray-900 p-2 rounded font-mono mb-3">
-                <code>GOOGLE_SEARCH_API_KEY=your_api_key</code><br />
-                <code>GOOGLE_SEARCH_ENGINE_ID=your_search_engine_id</code>
+            {!isUsingRealData && (
+              <div className="bg-dark rounded-lg border border-gray-800 p-4">
+                <h4 className="text-sm font-medium mb-2">Want real Google search results?</h4>
+                <p className="text-xs text-gray-400 mb-3">
+                  This app is using demo data for search results. To use the actual Google Custom Search API:
+                </p>
+                <ol className="list-decimal list-inside text-xs text-gray-400 space-y-1 ml-2 mb-3">
+                  <li>Create a <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">Google Cloud Platform</a> account</li>
+                  <li>Create a new project and enable the "Custom Search API"</li>
+                  <li>Create API credentials to get an API key</li>
+                  <li>Go to the <a href="https://programmablesearchengine.google.com/controlpanel/create" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">Programmable Search Engine</a> page to create a search engine</li>
+                  <li>Add your API key and Search Engine ID to the environment variables</li>
+                </ol>
+                <div className="text-xs bg-gray-900 p-2 rounded font-mono mb-3">
+                  <code>GOOGLE_SEARCH_API_KEY=your_api_key</code><br />
+                  <code>GOOGLE_SEARCH_ENGINE_ID=your_search_engine_id</code>
+                </div>
+                <p className="text-xs text-gray-500">Note: Google Custom Search API has a free tier that allows 100 search queries per day.</p>
               </div>
-              <p className="text-xs text-gray-500">Note: Google Custom Search API has a free tier that allows 100 search queries per day.</p>
-            </div>
+            )}
           </>
         ) : (
           <div className="text-center py-10 border border-dashed border-gray-700 rounded-lg">
