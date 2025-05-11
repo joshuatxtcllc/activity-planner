@@ -97,35 +97,109 @@ class InstagramAPIWrapper {
     return [
       {
         id: '1',
-        caption: 'Just tried the amazing sushi at Kata Robata! Must order the omakase - totally worth the price! 📍 Houston #sushi #omakase',
+        caption: 'Just tried the amazing sushi at Kata Robata! Must order the omakase - totally worth the price! 📍 Houston #sushi #omakase #foodie',
         location: { name: 'Kata Robata', coordinates: { latitude: 29.7623, longitude: -95.3639 } },
         timestamp: new Date().toISOString(),
         imageUrl: 'https://placehold.co/300x300',
-        url: 'https://instagram.com/p/example1'
+        url: 'https://instagram.com/p/example1',
+        poster: 'your_account'
       },
       {
         id: '2',
-        caption: 'Perfect hiking spot at Buffalo Bayou Park! Free and beautiful views of downtown. Go early to beat the heat! 🌳 #houston #hiking',
+        caption: 'Perfect hiking spot at Buffalo Bayou Park! Free and beautiful views of downtown. Go early to beat the heat! 🌳 #houston #hiking #outdoor #fitness',
         location: { name: 'Buffalo Bayou Park', coordinates: { latitude: 29.7633, longitude: -95.3906 } },
         timestamp: new Date().toISOString(),
         imageUrl: 'https://placehold.co/300x300',
-        url: 'https://instagram.com/p/example2'
+        url: 'https://instagram.com/p/example2',
+        poster: 'your_account'
+      },
+      {
+        id: '3',
+        caption: 'Caught an amazing show at House of Blues last night! The acoustics were incredible, and tickets were only $35. Definitely worth checking out their upcoming shows! #livemusic #concert #entertainment',
+        location: { name: 'House of Blues Houston', coordinates: { latitude: 29.7543, longitude: -95.3657 } },
+        timestamp: new Date().toISOString(),
+        imageUrl: 'https://placehold.co/300x300',
+        url: 'https://instagram.com/p/example3',
+        poster: 'your_account'
+      },
+      {
+        id: '4',
+        caption: 'Spent the afternoon exploring The Museum of Fine Arts. Their new exhibit is mind-blowing! Student admission is only $12.50 - such a deal for hours of inspiration. #art #museum #culture',
+        location: { name: 'The Museum of Fine Arts, Houston', coordinates: { latitude: 29.7260, longitude: -95.3907 } },
+        timestamp: new Date().toISOString(),
+        imageUrl: 'https://placehold.co/300x300',
+        url: 'https://instagram.com/p/example4',
+        poster: 'your_account'
       }
     ];
   }
   
   async getUserPosts(username: string, options = {}) {
-    // Mock data - would be replaced with real API call
-    return [
-      {
-        id: `${username}_1`,
-        caption: `New spot alert! Check out ${username}'s latest recommendation...`,
-        location: { name: 'Trendy New Spot', coordinates: { latitude: 29.7604, longitude: -95.3698 } },
-        timestamp: new Date().toISOString(),
-        imageUrl: 'https://placehold.co/300x300',
-        url: `https://instagram.com/p/${username}_example`
-      }
-    ];
+    // Different mock posts for different influencers
+    if (username === 'foodie_houston') {
+      return [
+        {
+          id: `${username}_1`,
+          caption: `HOT NEW RESTAURANT ALERT! 🔥 Just checked out Bloom & Bee at The Post Oak Hotel and it's my new favorite brunch spot in the city. The avocado toast with poached eggs is next level, and their mimosa flight is Instagram gold. A bit pricey ($$$) but worth every penny for a special occasion. They get busy around 11am so go early! #houston #brunch #foodie`,
+          location: { name: 'Bloom & Bee', coordinates: { latitude: 29.7390, longitude: -95.4615 } },
+          timestamp: new Date().toISOString(),
+          imageUrl: 'https://placehold.co/300x300',
+          url: `https://instagram.com/p/${username}_example1`,
+          poster: username
+        },
+        {
+          id: `${username}_2`,
+          caption: `Hidden gem alert! 💎 Found this amazing little Vietnamese spot called Xin Chào in the Heights. Chef Christine Ha (the blind chef who won MasterChef) has created some incredible fusion dishes. The smoked beef rib with flat rice noodles was mind-blowing! Around $25 per person for dinner. No wait on weeknights but weekends get packed. #vietnamese #fusion #houstonfood`,
+          location: { name: 'Xin Chào', coordinates: { latitude: 29.7868, longitude: -95.3886 } },
+          timestamp: new Date().toISOString(),
+          imageUrl: 'https://placehold.co/300x300',
+          url: `https://instagram.com/p/${username}_example2`,
+          poster: username
+        }
+      ];
+    } else if (username === 'adventure_guide') {
+      return [
+        {
+          id: `${username}_1`,
+          caption: `Weekend kayak trip at Armand Bayou Nature Center was INCREDIBLE! 🛶 Spotted three alligators and countless birds. Rental is just $30 for 2 hours and includes all equipment. Best in the morning before it gets too hot. Perfect activity for beginners - the water is calm and guides are super helpful. #outdoors #kayak #houstonadventure`,
+          location: { name: 'Armand Bayou Nature Center', coordinates: { latitude: 29.5944, longitude: -95.0749 } },
+          timestamp: new Date().toISOString(),
+          imageUrl: 'https://placehold.co/300x300',
+          url: `https://instagram.com/p/${username}_example1`,
+          poster: username
+        },
+        {
+          id: `${username}_2`,
+          caption: `Found the PERFECT sunrise spot just 40 min from downtown! Brazos Bend State Park has incredible morning views across the lake, and if you're lucky (like we were) you'll catch the morning fog creating a surreal landscape. $7 entrance fee, open 7am-7pm. The 5-mile loop trail is easy and totally worth completing. #hiking #sunrise #texasparks`,
+          location: { name: 'Brazos Bend State Park', coordinates: { latitude: 29.3797, longitude: -95.6082 } },
+          timestamp: new Date().toISOString(),
+          imageUrl: 'https://placehold.co/300x300',
+          url: `https://instagram.com/p/${username}_example2`,
+          poster: username
+        }
+      ];
+    } else {
+      return [
+        {
+          id: `${username}_1`,
+          caption: `Tonight's free concert at Miller Outdoor Theatre was AMAZING! 🎵 The Houston Symphony put on a stellar performance and the weather was perfect. Pro tip: arrive 2 hours early for covered seating tickets or bring a blanket for the hill. Completely FREE and they do these events all summer long! #houston #freeconcert #livemusic`,
+          location: { name: 'Miller Outdoor Theatre', coordinates: { latitude: 29.7194, longitude: -95.3909 } },
+          timestamp: new Date().toISOString(),
+          imageUrl: 'https://placehold.co/300x300',
+          url: `https://instagram.com/p/${username}_example1`,
+          poster: username
+        },
+        {
+          id: `${username}_2`,
+          caption: `Art lovers! You HAVE to check out the new immersive exhibit at The Menil Collection 🎨 It's an incredibly unique experience that combines light, sound, and interactive elements. Free admission (though donations appreciated). The exhibit runs for 3 more weeks and isn't crowded on weekday afternoons. #art #museum #immersive`,
+          location: { name: 'The Menil Collection', coordinates: { latitude: 29.7375, longitude: -95.3984 } },
+          timestamp: new Date().toISOString(),
+          imageUrl: 'https://placehold.co/300x300',
+          url: `https://instagram.com/p/${username}_example2`,
+          poster: username
+        }
+      ];
+    }
   }
 }
 
@@ -180,10 +254,22 @@ export default function InstagramActivityScraperComponent({ onActivitiesAdded }:
     const newApi = new InstagramAPIWrapper(mockToken);
     setApi(newApi);
     
+    // Add some sample influencers for demonstration
+    if (influencers.length === 0) {
+      const sampleInfluencers = ['foodie_houston', 'adventure_guide', 'local_events_insider'];
+      setInfluencers(sampleInfluencers);
+      localStorage.setItem('instagram_influencers', JSON.stringify(sampleInfluencers));
+    }
+    
     toast({
-      title: "Connected to Instagram",
-      description: "Your Instagram account has been successfully connected.",
+      title: "Demo: Instagram Connected",
+      description: "This is a simulated connection. In a production environment, this would authenticate with Instagram's API.",
     });
+    
+    // Pre-process some posts to show data immediately
+    setTimeout(() => {
+      processSavedPosts();
+    }, 500);
   };
   
   // Process saved posts
