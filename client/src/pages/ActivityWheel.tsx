@@ -331,7 +331,7 @@ export default function ActivityWheelPage() {
                     <RefreshCw className="mr-2 h-4 w-4" />
                     Clear Filters
                   </Button>
-                  <Button onClick={() => setShowInstagramScraper(true)}>
+                  <Button onClick={() => setActiveTab("instagram")}>
                     <Instagram className="mr-2 h-4 w-4" />
                     Import from Instagram
                   </Button>

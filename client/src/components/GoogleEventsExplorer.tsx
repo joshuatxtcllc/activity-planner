@@ -89,7 +89,7 @@ export function GoogleEventsExplorer({ onAddToWheel }: GoogleEventsExplorerProps
       location: event.venue || event.location || location,
       isPrivate: false,
       isFeatured: false,
-      date: event.formattedDate ? `Event Date: ${event.formattedDate}` : null,
+      date: event.formattedDate ? `Event Date: ${event.formattedDate}` : undefined,
       tags: [{ name: eventType || "Event", color: "default" }],
       eventUrl: event.link,
       isUserAdded: true,
