@@ -56,6 +56,20 @@ export default function ActivityWheelPage() {
       }
     };
     
+    // Check if we're coming from Instagram auth redirect
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('instagram') === 'connected') {
+      setActiveTab('instagram');
+      toast({
+        title: urlParams.get('simulated') ? "Instagram Connected (Simulated)" : "Instagram Connected",
+        description: "Your Instagram account has been connected successfully.",
+      });
+      
+      // Clean up URL
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+    }
+    
     fetchActivities();
   }, [toast]);
 
@@ -267,7 +281,9 @@ export default function ActivityWheelPage() {
       {/* Google Events Explorer */}
       {activeTab === "events" && (
         <div className="mb-8">
-          <GoogleEventsExplorer onAddToWheel={handleInstagramActivitiesAdded} />
+          <GoogleEventsExplorer 
+            onAddToWheel={(activity) => handleInstagramActivitiesAdded([activity])} 
+          />
         </div>
       )}
       

@@ -337,6 +337,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Instagram OAuth and API routes
   app.get("/api/instagram/auth", (req, res) => {
     try {
+      // In Replit environment, use simulated auth instead of real Instagram OAuth
+      // Set up session as if auth was successful
+      if (req.session) {
+        req.session.instagramAccessToken = "simulated_token_for_replit";
+        req.session.instagramUserId = "simulated_user_id";
+      }
+      
+      // Redirect to the Instagram scraper component with a connected parameter
+      res.redirect("/wheel?instagram=connected&simulated=true");
+      
+      /* Real Instagram OAuth code - disabled for Replit environment
       // Generate a random state value for security
       const state = crypto.randomBytes(16).toString('hex');
       
@@ -362,6 +373,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Redirect the user to Instagram for authorization
       res.redirect(instagramAuthUrl.toString());
+      */
     } catch (error) {
       console.error("Instagram auth error:", error);
       res.status(500).json({ error: "Failed to initiate Instagram authentication" });
@@ -437,6 +449,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const accessToken = req.session.instagramAccessToken;
       const userId = req.session.instagramUserId;
       
+      // Check if we're using a simulated token (for Replit environment)
+      if (accessToken === "simulated_token_for_replit") {
+        // Return a simulated user profile
+        return res.json({
+          id: userId,
+          username: "activity_explorer",
+          name: "Activity Explorer",
+          profile_picture: "https://placehold.co/300x300"
+        });
+      }
+      
+      // Real Instagram API code:
       // Fetch the user profile using the Graph API
       const userResponse = await fetch(
         `https://graph.instagram.com/v13.0/${userId}?fields=id,username&access_token=${accessToken}`
@@ -464,6 +488,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const accessToken = req.session.instagramAccessToken;
       const userId = req.session.instagramUserId;
       
+      // Check if we're using a simulated token (for Replit environment)
+      if (accessToken === "simulated_token_for_replit") {
+        // Return simulated media data
+        return res.json({
+          data: [
+            {
+              id: "simulated_1",
+              caption: "Just tried the amazing sushi at Kata Robata! Must order the omakase - totally worth the price! 📍 Houston #sushi #omakase #foodie",
+              media_type: "IMAGE",
+              media_url: "https://placehold.co/600x400/orange/white?text=Sushi+Restaurant",
+              permalink: "https://instagram.com/p/example1",
+              thumbnail_url: "https://placehold.co/300x300/orange/white?text=Sushi",
+              timestamp: new Date().toISOString(),
+              username: "activity_explorer"
+            },
+            {
+              id: "simulated_2",
+              caption: "Perfect hiking spot at Buffalo Bayou Park! Free and beautiful views of downtown. Go early to beat the heat! 🌳 #houston #hiking #outdoor #fitness",
+              media_type: "IMAGE",
+              media_url: "https://placehold.co/600x400/green/white?text=Hiking+Trail",
+              permalink: "https://instagram.com/p/example2",
+              thumbnail_url: "https://placehold.co/300x300/green/white?text=Hiking",
+              timestamp: new Date().toISOString(),
+              username: "activity_explorer"
+            },
+            {
+              id: "simulated_3",
+              caption: "Caught an amazing show at House of Blues last night! The acoustics were incredible, and tickets were only $35. Definitely worth checking out their upcoming shows! #livemusic #concert #entertainment",
+              media_type: "IMAGE",
+              media_url: "https://placehold.co/600x400/purple/white?text=Concert",
+              permalink: "https://instagram.com/p/example3",
+              thumbnail_url: "https://placehold.co/300x300/purple/white?text=Music",
+              timestamp: new Date().toISOString(),
+              username: "activity_explorer"
+            },
+            {
+              id: "simulated_4",
+              caption: "Spent the afternoon exploring The Museum of Fine Arts. Their new exhibit is mind-blowing! Student admission is only $12.50 - such a deal for hours of inspiration. #art #museum #culture",
+              media_type: "IMAGE",
+              media_url: "https://placehold.co/600x400/blue/white?text=Art+Museum",
+              permalink: "https://instagram.com/p/example4",
+              thumbnail_url: "https://placehold.co/300x300/blue/white?text=Art",
+              timestamp: new Date().toISOString(),
+              username: "activity_explorer"
+            }
+          ]
+        });
+      }
+      
+      // Real Instagram API code:
       // Fetch user's media using the Graph API
       const mediaResponse = await fetch(
         `https://graph.instagram.com/v13.0/${userId}/media?fields=id,caption,media_type,media_url,permalink,thumbnail_url,timestamp,username&access_token=${accessToken}`
