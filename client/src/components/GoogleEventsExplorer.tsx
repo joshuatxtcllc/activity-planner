@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ActivityType } from "@/pages/Dashboard";
@@ -40,7 +39,7 @@ export function GoogleEventsExplorer({ onSaveActivity }: GoogleEventsExplorerPro
   const [eventType, setEventType] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [events, setEvents] = useState<ActivityType[]>([]);
-  
+
   // Date options for the dropdown
   const dateOptions = [
     { value: "today", label: "Today" },
@@ -49,10 +48,10 @@ export function GoogleEventsExplorer({ onSaveActivity }: GoogleEventsExplorerPro
     { value: "next week", label: "Next Week" },
     { value: "this month", label: "This Month" }
   ];
-  
+
   // Event types for filtering
   const eventTypes = ["Music", "Art", "Sports", "Food", "Comedy", "Festival"];
-  
+
   // Query for searching events
   const { 
     data, 
@@ -68,12 +67,12 @@ export function GoogleEventsExplorer({ onSaveActivity }: GoogleEventsExplorerPro
     }),
     enabled: false, // Don't execute the query on component mount
   });
-  
+
   // Handle search button click
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSearching(true);
-    
+
     try {
       // Build query based on user input
       const searchParams = {
@@ -82,12 +81,12 @@ export function GoogleEventsExplorer({ onSaveActivity }: GoogleEventsExplorerPro
         date: dateFilter,
         eventType: eventType
       };
-      
+
       console.log("Searching Google for events:", searchParams);
-      
+
       // Execute the query
       const results = await searchGoogleEvents(searchParams);
-      
+
       // Update state with results
       if (results && Array.isArray(results)) {
         setEvents(results);
@@ -195,7 +194,7 @@ export function GoogleEventsExplorer({ onSaveActivity }: GoogleEventsExplorerPro
                     <Badge variant="secondary" className="ml-2">Featured</Badge>
                   )}
                 </div>
-                
+
                 <div className="mt-3 text-gray-400 text-sm">
                   <div className="flex items-center mb-1">
                     <CalendarDays className="h-4 w-4 mr-1 inline" />
@@ -206,7 +205,7 @@ export function GoogleEventsExplorer({ onSaveActivity }: GoogleEventsExplorerPro
                     {event.location}
                   </div>
                 </div>
-                
+
                 <div className="flex flex-wrap gap-1 mt-3">
                   {event.tags && event.tags.map((tag, i) => (
                     <Badge key={i} variant={tag.color === "accent" ? "destructive" : tag.color === "secondary" ? "secondary" : "outline"}>
@@ -214,7 +213,7 @@ export function GoogleEventsExplorer({ onSaveActivity }: GoogleEventsExplorerPro
                     </Badge>
                   ))}
                 </div>
-                
+
                 <Button 
                   className="w-full mt-4" 
                   size="sm"

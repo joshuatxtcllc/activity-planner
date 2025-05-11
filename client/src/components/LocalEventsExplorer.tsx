@@ -56,25 +56,25 @@ export function LocalEventsExplorer({ onSaveActivity }: LocalEventsExplorerProps
     latitude: "40.7128",
     longitude: "-74.0060"
   });
-  
+
   // State for event details dialog
   const [selectedEvent, setSelectedEvent] = useState<ActivityType | null>(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
-  
+
   // Using the API keys from environment variables
   const apiKeys = {
     ticketmaster: import.meta.env.VITE_TICKETMASTER_API_KEY as string || "",
     eventbrite: import.meta.env.VITE_EVENTBRITE_API_KEY as string || "",
     tripadvisor: import.meta.env.VITE_TRIPADVISOR_API_KEY as string || ""
   };
-  
+
   // Check if we have at least one API key with actual content
   const hasApiKeys = (
     (apiKeys.ticketmaster && apiKeys.ticketmaster.length > 5) || 
     (apiKeys.eventbrite && apiKeys.eventbrite.length > 5) || 
     (apiKeys.tripadvisor && apiKeys.tripadvisor.length > 5)
   );
-  
+
   // Fetch user location on component mount
   useEffect(() => {
     const fetchLocation = async () => {
@@ -91,29 +91,29 @@ export function LocalEventsExplorer({ onSaveActivity }: LocalEventsExplorerProps
           state: "NY",
           country: "USA"
         };
-        
+
         // Update the custom location form with these values
         setCustomLocation({
           city: defaultLocation.city || "New York",
           latitude: defaultLocation.latitude.toString(),
           longitude: defaultLocation.longitude.toString()
         });
-        
+
         // Show a toast to let the user know
         toast({
           title: "Location Access",
           description: "Please use the 'Set Your Location' button to choose your city.",
           variant: "destructive"
         });
-        
+
         // Set the user location to the default
         setUserLocation(defaultLocation);
       }
     };
-    
+
     fetchLocation();
   }, [toast]);
-  
+
   // Query for local events
   const { 
     data: localEvents, 
@@ -128,7 +128,7 @@ export function LocalEventsExplorer({ onSaveActivity }: LocalEventsExplorerProps
     },
     enabled: !!userLocation,
   });
-  
+
   // Handle saving an activity
   const handleSaveActivity = (activity: ActivityType) => {
     onSaveActivity(activity);
@@ -137,7 +137,7 @@ export function LocalEventsExplorer({ onSaveActivity }: LocalEventsExplorerProps
       description: `"${activity.title}" has been added to your collection`,
     });
   };
-  
+
   // Handle setting a custom location
   const handleSetCustomLocation = () => {
     // Basic validation
@@ -149,10 +149,10 @@ export function LocalEventsExplorer({ onSaveActivity }: LocalEventsExplorerProps
       });
       return;
     }
-    
+
     const lat = parseFloat(customLocation.latitude);
     const lng = parseFloat(customLocation.longitude);
-    
+
     // If coordinates are provided, validate them
     if (customLocation.latitude || customLocation.longitude) {
       if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
@@ -164,7 +164,7 @@ export function LocalEventsExplorer({ onSaveActivity }: LocalEventsExplorerProps
         return;
       }
     }
-    
+
     // Create location object with default coordinates if not provided
     const newLocation: UserLocation = {
       city: customLocation.city,
@@ -172,31 +172,31 @@ export function LocalEventsExplorer({ onSaveActivity }: LocalEventsExplorerProps
       latitude: !isNaN(lat) ? lat : 40.7128, // Default to NYC coordinates
       longitude: !isNaN(lng) ? lng : -74.0060
     };
-    
+
     // Show loading state
     // The refresh will happen automatically when location changes
-    
+
     // First update the global location service
     import('@/lib/localEventsService').then(module => {
       module.setUserLocation(newLocation);
     });
-    
+
     // Update local state and close modal
     setUserLocation(newLocation);
     setLocationModalOpen(false);
-    
+
     // Force a refresh with the new location
     setTimeout(() => {
       console.log("Refreshing events with new location:", newLocation);
       refetch();
     }, 200);
-    
+
     toast({
       title: "Location Updated",
       description: `Showing events near ${newLocation.city}`,
     });
   };
-  
+
   // Function to get icon based on activity type
   const getActivityIcon = (activity: ActivityType) => {
     switch (activity.icon) {
@@ -210,13 +210,13 @@ export function LocalEventsExplorer({ onSaveActivity }: LocalEventsExplorerProps
         return <Palette className="h-5 w-5 text-accent" />;
     }
   };
-  
+
   // Function to handle opening details dialog
   const handleOpenDetails = (activity: ActivityType) => {
     setSelectedEvent(activity);
     setDetailsDialogOpen(true);
   };
-  
+
   return (
     <div>
       <Card className="border-gray-800">
@@ -232,7 +232,7 @@ export function LocalEventsExplorer({ onSaveActivity }: LocalEventsExplorerProps
                   ? `Showing ${hasApiKeys ? 'real' : 'sample'} events near ${userLocation.city}` 
                   : `Please set your location to see local events`}
               </CardDescription>
-              
+
               {userLocation?.city && (
                 <div className="mt-2 flex items-center">
                   <Badge variant="outline" className="bg-primary/30 text-primary-foreground font-medium">
@@ -241,7 +241,7 @@ export function LocalEventsExplorer({ onSaveActivity }: LocalEventsExplorerProps
                 </div>
               )}
             </div>
-            
+
             <AlertDialog open={locationModalOpen} onOpenChange={setLocationModalOpen}>
               <AlertDialogTrigger asChild>
                 <Button variant="default" size="sm" className="flex items-center gap-1 bg-accent hover:bg-accent/90">
@@ -256,7 +256,7 @@ export function LocalEventsExplorer({ onSaveActivity }: LocalEventsExplorerProps
                     Enter your city name to find events in your area. Browser location detection may not work in all environments.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
-                
+
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="city" className="text-right">
@@ -294,7 +294,7 @@ export function LocalEventsExplorer({ onSaveActivity }: LocalEventsExplorerProps
                     />
                   </div>
                 </div>
-                
+
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction onClick={handleSetCustomLocation}>
@@ -305,7 +305,7 @@ export function LocalEventsExplorer({ onSaveActivity }: LocalEventsExplorerProps
             </AlertDialog>
           </div>
         </CardHeader>
-        
+
         <CardContent>
           {isLoading ? (
             <div className="flex justify-center py-10">
@@ -340,12 +340,12 @@ export function LocalEventsExplorer({ onSaveActivity }: LocalEventsExplorerProps
                           </h3>
                         </div>
                       </div>
-                      
+
                       {activity.isFeatured && (
                         <Badge variant="secondary" className="ml-2">Featured</Badge>
                       )}
                     </div>
-                    
+
                     <div className="mt-3 text-gray-400 text-sm">
                       <div className="flex items-center mb-1">
                         <CalendarDays className="h-4 w-4 mr-1 inline" />
@@ -356,7 +356,7 @@ export function LocalEventsExplorer({ onSaveActivity }: LocalEventsExplorerProps
                         {activity.location}
                       </div>
                     </div>
-                    
+
                     <div className="flex flex-wrap gap-1 mt-3">
                       {activity.tags.map((tag, i) => (
                         <Badge key={i} variant={tag.color === "accent" ? "destructive" : tag.color === "secondary" ? "secondary" : "outline"}>
@@ -365,9 +365,9 @@ export function LocalEventsExplorer({ onSaveActivity }: LocalEventsExplorerProps
                       ))}
                     </div>
                   </div>
-                  
+
                   <Separator />
-                  
+
                   <div className="p-3 flex justify-between items-center">
                     <span className="text-xs text-gray-400">
                       <Button size="sm" variant="ghost" className="flex items-center px-2 py-0 h-auto text-xs text-gray-400 hover:text-accent">
@@ -409,7 +409,7 @@ export function LocalEventsExplorer({ onSaveActivity }: LocalEventsExplorerProps
             </div>
           )}
         </CardContent>
-        
+
         <CardFooter className="flex flex-col items-center border-t border-gray-800 pt-4">
           <p className="text-xs text-gray-500 mb-2">
             Events are aggregated from various sources and may be subject to change. Always check the official event website for the most up-to-date information.
@@ -423,7 +423,7 @@ export function LocalEventsExplorer({ onSaveActivity }: LocalEventsExplorerProps
           )}
         </CardFooter>
       </Card>
-      
+
       <EventDetailsDialog
         event={selectedEvent}
         isOpen={detailsDialogOpen}

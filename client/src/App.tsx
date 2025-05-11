@@ -9,6 +9,7 @@ import ActivityCategories from "@/pages/ActivityCategories";
 import ActivityWheel from "@/pages/ActivityWheel";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 function Router() {
   return (
@@ -25,14 +26,16 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="flex flex-col min-h-screen bg-dark text-light">
-        <Header />
-        <main className="flex-grow">
-          <Router />
-        </main>
-        <Footer />
-      </div>
-      <Toaster />
+      <ErrorBoundary>
+        <div className="flex flex-col min-h-screen bg-dark text-light">
+          <Header />
+          <main className="flex-grow">
+            <Router />
+          </main>
+          <Footer />
+        </div>
+        <Toaster />
+      </ErrorBoundary>
     </QueryClientProvider>
   );
 }
