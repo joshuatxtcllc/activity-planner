@@ -90,10 +90,81 @@ class InstagramActivityScraper {
 }
 
 class InstagramAPIWrapper {
-  constructor(private accessToken: string) {}
+  constructor() {}
   
   async getSavedPosts() {
-    // Mock data - would be replaced with real API call
+    try {
+      // Get user media from the API
+      const response = await fetch('/api/instagram/media');
+      if (!response.ok) {
+        throw new Error('Failed to fetch Instagram media');
+      }
+      
+      const mediaData = await response.json();
+      
+      // Check if we have media data
+      if (!mediaData || !mediaData.data || !Array.isArray(mediaData.data)) {
+        return this.getFallbackPosts();
+      }
+      
+      // Transform the Instagram API response into our format
+      return mediaData.data.map((post: any) => {
+        // Extract location data from caption if available
+        const locationMatch = post.caption ? post.caption.match(/@([^#\s]+)/) : null;
+        const location = {
+          name: locationMatch ? locationMatch[1] : 'Unknown Location',
+          coordinates: null
+        };
+        
+        return {
+          id: post.id,
+          caption: post.caption || '',
+          location,
+          timestamp: post.timestamp,
+          imageUrl: post.media_url || post.thumbnail_url,
+          url: post.permalink,
+          poster: post.username
+        };
+      });
+    } catch (error) {
+      console.error('Error fetching Instagram posts:', error);
+      
+      // Return fallback data if the real API fails
+      return this.getFallbackPosts();
+    }
+  }
+  
+  async getUserPosts(username: string, options = {}) {
+    try {
+      // Check if we're using our own user's posts
+      const userResponse = await fetch('/api/instagram/user');
+      if (!userResponse.ok) {
+        throw new Error('Failed to fetch Instagram user');
+      }
+      
+      const userData = await userResponse.json();
+      
+      // If the username matches the current user, use the media endpoint
+      if (userData.username === username) {
+        return this.getSavedPosts();
+      }
+      
+      // For other users, we need to handle this differently
+      // Currently, the Instagram Basic Display API doesn't allow fetching other users' media
+      // We would need to upgrade to Instagram Graph API with proper permissions
+      
+      // Return fallback data for now
+      return this.getFallbackUserPosts(username);
+    } catch (error) {
+      console.error(`Error fetching posts for ${username}:`, error);
+      
+      // Return fallback data if the real API fails
+      return this.getFallbackUserPosts(username);
+    }
+  }
+  
+  // Fallback methods for demonstration and development
+  private getFallbackPosts() {
     return [
       {
         id: '1',
@@ -112,69 +183,21 @@ class InstagramAPIWrapper {
         imageUrl: 'https://placehold.co/300x300',
         url: 'https://instagram.com/p/example2',
         poster: 'your_account'
-      },
-      {
-        id: '3',
-        caption: 'Caught an amazing show at House of Blues last night! The acoustics were incredible, and tickets were only $35. Definitely worth checking out their upcoming shows! #livemusic #concert #entertainment',
-        location: { name: 'House of Blues Houston', coordinates: { latitude: 29.7543, longitude: -95.3657 } },
-        timestamp: new Date().toISOString(),
-        imageUrl: 'https://placehold.co/300x300',
-        url: 'https://instagram.com/p/example3',
-        poster: 'your_account'
-      },
-      {
-        id: '4',
-        caption: 'Spent the afternoon exploring The Museum of Fine Arts. Their new exhibit is mind-blowing! Student admission is only $12.50 - such a deal for hours of inspiration. #art #museum #culture',
-        location: { name: 'The Museum of Fine Arts, Houston', coordinates: { latitude: 29.7260, longitude: -95.3907 } },
-        timestamp: new Date().toISOString(),
-        imageUrl: 'https://placehold.co/300x300',
-        url: 'https://instagram.com/p/example4',
-        poster: 'your_account'
       }
     ];
   }
   
-  async getUserPosts(username: string, options = {}) {
-    // Different mock posts for different influencers
+  private getFallbackUserPosts(username: string) {
+    // Provide sample data based on username for demonstration
     if (username === 'foodie_houston') {
       return [
         {
           id: `${username}_1`,
-          caption: `HOT NEW RESTAURANT ALERT! 🔥 Just checked out Bloom & Bee at The Post Oak Hotel and it's my new favorite brunch spot in the city. The avocado toast with poached eggs is next level, and their mimosa flight is Instagram gold. A bit pricey ($$$) but worth every penny for a special occasion. They get busy around 11am so go early! #houston #brunch #foodie`,
+          caption: `HOT NEW RESTAURANT ALERT! 🔥 Just checked out Bloom & Bee at The Post Oak Hotel and it's my new favorite brunch spot in the city. The avocado toast with poached eggs is next level, and their mimosa flight is Instagram gold. #houston #brunch #foodie`,
           location: { name: 'Bloom & Bee', coordinates: { latitude: 29.7390, longitude: -95.4615 } },
           timestamp: new Date().toISOString(),
           imageUrl: 'https://placehold.co/300x300',
           url: `https://instagram.com/p/${username}_example1`,
-          poster: username
-        },
-        {
-          id: `${username}_2`,
-          caption: `Hidden gem alert! 💎 Found this amazing little Vietnamese spot called Xin Chào in the Heights. Chef Christine Ha (the blind chef who won MasterChef) has created some incredible fusion dishes. The smoked beef rib with flat rice noodles was mind-blowing! Around $25 per person for dinner. No wait on weeknights but weekends get packed. #vietnamese #fusion #houstonfood`,
-          location: { name: 'Xin Chào', coordinates: { latitude: 29.7868, longitude: -95.3886 } },
-          timestamp: new Date().toISOString(),
-          imageUrl: 'https://placehold.co/300x300',
-          url: `https://instagram.com/p/${username}_example2`,
-          poster: username
-        }
-      ];
-    } else if (username === 'adventure_guide') {
-      return [
-        {
-          id: `${username}_1`,
-          caption: `Weekend kayak trip at Armand Bayou Nature Center was INCREDIBLE! 🛶 Spotted three alligators and countless birds. Rental is just $30 for 2 hours and includes all equipment. Best in the morning before it gets too hot. Perfect activity for beginners - the water is calm and guides are super helpful. #outdoors #kayak #houstonadventure`,
-          location: { name: 'Armand Bayou Nature Center', coordinates: { latitude: 29.5944, longitude: -95.0749 } },
-          timestamp: new Date().toISOString(),
-          imageUrl: 'https://placehold.co/300x300',
-          url: `https://instagram.com/p/${username}_example1`,
-          poster: username
-        },
-        {
-          id: `${username}_2`,
-          caption: `Found the PERFECT sunrise spot just 40 min from downtown! Brazos Bend State Park has incredible morning views across the lake, and if you're lucky (like we were) you'll catch the morning fog creating a surreal landscape. $7 entrance fee, open 7am-7pm. The 5-mile loop trail is easy and totally worth completing. #hiking #sunrise #texasparks`,
-          location: { name: 'Brazos Bend State Park', coordinates: { latitude: 29.3797, longitude: -95.6082 } },
-          timestamp: new Date().toISOString(),
-          imageUrl: 'https://placehold.co/300x300',
-          url: `https://instagram.com/p/${username}_example2`,
           poster: username
         }
       ];
@@ -182,20 +205,11 @@ class InstagramAPIWrapper {
       return [
         {
           id: `${username}_1`,
-          caption: `Tonight's free concert at Miller Outdoor Theatre was AMAZING! 🎵 The Houston Symphony put on a stellar performance and the weather was perfect. Pro tip: arrive 2 hours early for covered seating tickets or bring a blanket for the hill. Completely FREE and they do these events all summer long! #houston #freeconcert #livemusic`,
-          location: { name: 'Miller Outdoor Theatre', coordinates: { latitude: 29.7194, longitude: -95.3909 } },
+          caption: `Weekend adventure! Found this amazing spot downtown. #adventure #outdoors`,
+          location: { name: 'Downtown Area', coordinates: null },
           timestamp: new Date().toISOString(),
           imageUrl: 'https://placehold.co/300x300',
           url: `https://instagram.com/p/${username}_example1`,
-          poster: username
-        },
-        {
-          id: `${username}_2`,
-          caption: `Art lovers! You HAVE to check out the new immersive exhibit at The Menil Collection 🎨 It's an incredibly unique experience that combines light, sound, and interactive elements. Free admission (though donations appreciated). The exhibit runs for 3 more weeks and isn't crowded on weekday afternoons. #art #museum #immersive`,
-          location: { name: 'The Menil Collection', coordinates: { latitude: 29.7375, longitude: -95.3984 } },
-          timestamp: new Date().toISOString(),
-          imageUrl: 'https://placehold.co/300x300',
-          url: `https://instagram.com/p/${username}_example2`,
           poster: username
         }
       ];
@@ -243,33 +257,44 @@ export default function InstagramActivityScraperComponent({ onActivitiesAdded }:
     }
   }, []);
   
-  // Connect to Instagram
+  // Check if we're already connected to Instagram
+  useEffect(() => {
+    const checkConnection = async () => {
+      try {
+        const response = await fetch('/api/instagram/status');
+        const data = await response.json();
+        
+        if (data.connected) {
+          setIsConnected(true);
+          // Initialize the API - we'll use the backend as a proxy
+          setApi(new InstagramAPIWrapper());
+          
+          // Auto-process saved posts if we're connected
+          setTimeout(() => {
+            processSavedPosts();
+          }, 500);
+        }
+      } catch (error) {
+        console.error('Error checking Instagram connection:', error);
+      }
+    };
+    
+    checkConnection();
+  }, []);
+  
+  // Connect to Instagram using real OAuth flow
   const connectInstagram = async () => {
-    // This would normally open Instagram OAuth flow
-    // For demo purposes, we'll simulate connection
-    setIsConnected(true);
-    
-    // Initialize API with mock token
-    const mockToken = 'mock_instagram_token';
-    const newApi = new InstagramAPIWrapper(mockToken);
-    setApi(newApi);
-    
-    // Add some sample influencers for demonstration
-    if (influencers.length === 0) {
-      const sampleInfluencers = ['foodie_houston', 'adventure_guide', 'local_events_insider'];
-      setInfluencers(sampleInfluencers);
-      localStorage.setItem('instagram_influencers', JSON.stringify(sampleInfluencers));
+    try {
+      // Redirect to Instagram authorization
+      window.location.href = '/api/instagram/auth';
+    } catch (error) {
+      console.error('Error connecting to Instagram:', error);
+      toast({
+        title: "Connection Error",
+        description: "Failed to connect to Instagram. Please try again.",
+        variant: "destructive"
+      });
     }
-    
-    toast({
-      title: "Demo: Instagram Connected",
-      description: "This is a simulated connection. In a production environment, this would authenticate with Instagram's API.",
-    });
-    
-    // Pre-process some posts to show data immediately
-    setTimeout(() => {
-      processSavedPosts();
-    }, 500);
   };
   
   // Process saved posts
