@@ -7,7 +7,7 @@ import { CategoryType, CostLevelType, TimeCommitmentType } from '@/lib/activityC
 import { Button } from '@/components/ui/button';
 import { Filter, RefreshCw, Instagram, CalendarRange, Map } from 'lucide-react';
 import InstagramActivityScraper from '@/components/InstagramActivityScraper';
-import GoogleEventsExplorer from '@/components/GoogleEventsExplorer';
+import { GoogleEventsExplorer } from '@/components/GoogleEventsExplorer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function ActivityWheelPage() {

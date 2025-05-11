@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { searchGoogleEvents } from "@/lib/googleEventsSearch";
@@ -32,7 +33,7 @@ interface GoogleEventsExplorerProps {
   onAddToWheel: (activity: EnhancedActivityType) => void;
 }
 
-export default function GoogleEventsExplorer({ onAddToWheel }: GoogleEventsExplorerProps) {
+export function GoogleEventsExplorer({ onAddToWheel }: GoogleEventsExplorerProps) {
   const { toast } = useToast();
   const [location, setLocation] = useState("");
   const [eventType, setEventType] = useState("");
@@ -253,3 +254,6 @@ export default function GoogleEventsExplorer({ onAddToWheel }: GoogleEventsExplo
     </div>
   );
 }
+
+// Also export as default for backward compatibility
+export default GoogleEventsExplorer;
