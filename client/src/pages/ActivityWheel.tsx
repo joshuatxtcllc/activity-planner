@@ -26,6 +26,74 @@ export default function ActivityWheelPage() {
     costs: [],
     times: []
   });
+  
+  // Handle new activity creation
+  const handleAddActivity = async (activity: EnhancedActivityType) => {
+    try {
+      // Prepare the activity data
+      const activityData = {
+        title: activity.title,
+        description: activity.description,
+        category: activity.category,
+        costLevel: activity.costLevel,
+        timeCommitment: activity.timeCommitment,
+        location: activity.location,
+        isPrivate: activity.isPrivate,
+        isFeatured: activity.isFeatured,
+        seasonality: activity.seasonality,
+        tags: activity.tags || [],
+        attendees: 0, // Start with 0 attendees for new activities
+        icon: activity.icon,
+        iconBgClass: activity.iconBgClass,
+        date: activity.date,
+        contactInfo: activity.contactInfo
+      };
+      
+      // Send the activity data to the server
+      const response = await fetch('/api/activities', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(activityData),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to save activity');
+      }
+      
+      // Get the new activity from the response
+      const newActivity = await response.json();
+      
+      // Transform into an enhanced activity
+      const enhancedActivity = upgradeToEnhancedActivity(newActivity);
+      
+      // Update the state with the new activity
+      setActivities(prev => [...prev, enhancedActivity]);
+      
+      // Add to filtered activities if it matches the current filters
+      const matchesFilters = 
+        (filters.categories.length === 0 || filters.categories.includes(enhancedActivity.category)) &&
+        (filters.costs.length === 0 || filters.costs.includes(enhancedActivity.costLevel)) &&
+        (filters.times.length === 0 || filters.times.includes(enhancedActivity.timeCommitment));
+      
+      if (matchesFilters) {
+        setFilteredActivities(prev => [...prev, enhancedActivity]);
+      }
+      
+      toast({
+        title: "Success",
+        description: `Activity "${activity.title}" has been saved.`,
+      });
+    } catch (error) {
+      console.error('Error saving activity:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save the activity. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
 
   // Fetch activities from API on component mount
   useEffect(() => {
@@ -243,7 +311,7 @@ export default function ActivityWheelPage() {
       
       {/* Tab navigation */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mb-8">
-        <TabsList className="grid w-full max-w-md mx-auto grid-cols-3">
+        <TabsList className="grid w-full max-w-md mx-auto grid-cols-4">
           <TabsTrigger value="wheel">
             <Filter className="mr-2 h-4 w-4" />
             Wheel
@@ -255,6 +323,10 @@ export default function ActivityWheelPage() {
           <TabsTrigger value="instagram">
             <Instagram className="mr-2 h-4 w-4 text-pink-500" />
             Instagram
+          </TabsTrigger>
+          <TabsTrigger value="create">
+            <Plus className="mr-2 h-4 w-4 text-green-500" />
+            Create New
           </TabsTrigger>
         </TabsList>
       </Tabs>
@@ -285,6 +357,19 @@ export default function ActivityWheelPage() {
           <GoogleEventsExplorer 
             onAddToWheel={(activity) => handleInstagramActivitiesAdded([activity])} 
           />
+        </div>
+      )}
+      
+      {/* Activity Creation Form */}
+      {activeTab === "create" && (
+        <div className="mb-8">
+          <div className="max-w-2xl mx-auto bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
+            <h2 className="text-2xl font-bold mb-4">Create New Activity</h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              Add your own custom activity to your collection. Fill out the details below to get started.
+            </p>
+            <ActivityCreationForm onAddActivity={handleAddActivity} />
+          </div>
         </div>
       )}
       
