@@ -1,389 +1,254 @@
-import { useState, useEffect } from "react";
-import { Search, Calendar, MapPin, Info } from "lucide-react";
-import { ActivityType } from "@/pages/Dashboard";
+import React, { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { searchGoogleEvents } from "@/lib/googleEventsSearch";
-import { useToast } from "@/hooks/use-toast";
-
-import { Card, CardContent } from "@/components/ui/card";
+import { EnhancedActivityType, upgradeToEnhancedActivity } from "@/lib/activityModel";
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardHeader, 
+  CardTitle 
+} from "@/components/ui/card";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
-import EventDetailsDialog from "@/components/EventDetailsDialog";
+import { 
+  CalendarDays, 
+  MapPin, 
+  PlusCircle,
+  Loader2,
+  Search
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { CategoryType } from "@/lib/activityCategories";
 
 interface GoogleEventsExplorerProps {
-  onSaveActivity: (activity: ActivityType) => void;
+  onAddToWheel: (activity: EnhancedActivityType) => void;
 }
 
-export function GoogleEventsExplorer({ onSaveActivity }: GoogleEventsExplorerProps) {
+export default function GoogleEventsExplorer({ onAddToWheel }: GoogleEventsExplorerProps) {
   const { toast } = useToast();
+  const [location, setLocation] = useState("");
+  const [eventType, setEventType] = useState("");
+  const [dateFilter, setDateFilter] = useState("this weekend");
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchLocation, setSearchLocation] = useState("");
-  const [searchResults, setSearchResults] = useState<ActivityType[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<ActivityType | null>(null);
-  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
-  const [isUsingRealData, setIsUsingRealData] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
 
-  // Sample popular searches for quick selection
-  const popularSearches = [
-    "concerts this weekend",
-    "festivals",
-    "food events",
-    "comedy shows",
-    "art exhibitions"
-  ];
-  
-  // Search for events when the page loads with a default query
-  useEffect(() => {
-    handleSearch("events this weekend", "");
-  }, []);
+  // Track which events have been added to the wheel
+  const [addedEvents, setAddedEvents] = useState<Set<string>>(new Set());
 
-  const handleSearch = async (query = searchQuery, location = searchLocation) => {
-    if (!query) {
-      toast({
-        title: "Search query required",
-        description: "Please enter a search term or select from popular searches",
-        variant: "destructive",
-      });
-      return;
-    }
+  const { data: events = [], isLoading, refetch } = useQuery({
+    queryKey: ["googleEvents", searchQuery, location, eventType, dateFilter],
+    queryFn: async () => {
+      if (!searchQuery && !location && !eventType) return [];
 
-    setIsLoading(true);
-    
-    try {
-      // Use the updated searchGoogleEvents function that returns an object with activities and isUsingRealData
-      const searchParams = {
-        query,
-        location: location || undefined,
-        date: "this weekend" // Default to this weekend if not specified in query
-      };
-      
-      console.log("Searching Google for events:", searchParams);
-      
-      // Make API request to our backend proxy
-      const response = await fetch(`/api/proxy/google-search?q=${encodeURIComponent(
-        (searchParams.location ? `${searchParams.query} in ${searchParams.location}` : searchParams.query) + 
-        (searchParams.date ? ` ${searchParams.date}` : '')
-      )}`);
-      
-      if (!response.ok) {
-        console.error("Error response from Google search API:", response.status);
-        setSearchResults([]);
-        setIsUsingRealData(false);
-        throw new Error(`API error: ${response.status}`);
-      }
-      
-      const results = await response.json();
-      
-      if (!results || results.length === 0) {
-        console.log("No Google search results found");
-        setSearchResults([]);
-        setIsUsingRealData(false);
-        return;
-      }
-      
-      console.log(`Found ${results.length} Google search results`);
-      
-      // Check if we're using fallback data
-      const isUsingRealApiData = !results[0]?.usingFallbackData;
-      setIsUsingRealData(isUsingRealApiData);
-      
-      // Transform Google Search results into ActivityType objects
-      const activities = transformGoogleResultsToActivities(results);
-      setSearchResults(activities);
-      
-      if (activities.length === 0) {
+      setIsSearching(true);
+      try {
+        const query = searchQuery || 
+                    `${eventType ? eventType + " " : ""}${location ? "in " + location : ""} events`;
+
+        const results = await searchGoogleEvents(query, location, eventType, dateFilter);
+        return results;
+      } catch (error) {
+        console.error("Error fetching Google events:", error);
         toast({
-          title: "No events found",
-          description: `No events found for "${query}". Try a different search term.`,
+          title: "Error",
+          description: "Failed to fetch events. Please try again.",
+          variant: "destructive"
         });
+        return [];
+      } finally {
+        setIsSearching(false);
       }
-    } catch (error) {
-      console.error("Error searching for events:", error);
-      setIsUsingRealData(false);
-      toast({
-        title: "Search Error",
-        description: "There was a problem searching for events. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  // Helper function to transform Google search results into ActivityType objects
-  function transformGoogleResultsToActivities(results: any[]): ActivityType[] {
-    if (!results || results.length === 0) return [];
-    
-    return results.map((result, index) => {
-      // Extract location from snippet if possible
-      const locationMatch = result.snippet?.match(/at\s+([^,.]+)/i);
-      const dateMatch = result.snippet?.match(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2}/i);
-      
-      // Generate a random icon
-      const icons = ["music", "cocktail", "art"] as const;
-      const icon = icons[Math.floor(Math.random() * icons.length)];
-      
-      // Generate icon background class based on icon
-      const iconBgClass = icon === "music" 
-        ? "bg-primary bg-opacity-30" 
-        : icon === "cocktail" 
-        ? "bg-secondary bg-opacity-30" 
-        : "bg-accent bg-opacity-30";
-      
-      // Extract tags from title and snippet
-      const extractTags = (text: string) => {
-        const commonEventTypes = [
-          "concert", "festival", "show", "exhibition", "party", 
-          "fair", "market", "performance", "game", "match",
-          "music", "art", "food", "drink", "sports", "comedy"
-        ];
-        
-        const foundTags: string[] = [];
-        
-        commonEventTypes.forEach(type => {
-          if (text.toLowerCase().includes(type) && !foundTags.includes(type)) {
-            foundTags.push(type);
-          }
-        });
-        
-        return foundTags;
-      };
-      
-      const allTags = [...extractTags(result.title || ""), ...extractTags(result.snippet || "")];
-      // Use Array.from to convert Set to Array for better compatibility
-      const uniqueTags = Array.from(new Set(allTags)).slice(0, 3); // Limit to 3 tags
-      
-      const tagColors = ["secondary", "accent", "default"] as const;
-      
-      return {
-        id: index + 1000, // Use 1000+ range to avoid conflicts with existing activities
-        title: result.title || "Event",
-        isPrivate: false,
-        date: result.formattedDate || (dateMatch ? dateMatch[0] : "Upcoming Event"),
-        location: result.venue || (locationMatch ? locationMatch[1] : "Various Locations"),
-        tags: uniqueTags.map((tag, i) => ({
-          name: tag.charAt(0).toUpperCase() + tag.slice(1), // Capitalize first letter
-          color: tagColors[i % tagColors.length]
-        })),
-        attendees: Math.floor(Math.random() * 20) + 5, // Random number of attendees
-        icon,
-        iconBgClass,
-        eventUrl: result.link
-      };
-    });
-  }
+    },
+    enabled: false, // Don't run the query automatically
+  });
 
-  const handleSaveActivity = (activity: ActivityType) => {
-    onSaveActivity(activity);
+  const handleSearch = () => {
+    refetch();
+  };
+
+  const handleAddToWheel = (event: any) => {
+    // Convert Google event to EnhancedActivityType
+    const category: CategoryType = event.eventType || "ENTERTAINMENT";
+
+    const enhancedActivity: EnhancedActivityType = {
+      id: `google-${event.link.replace(/[^a-zA-Z0-9]/g, "-")}`,
+      title: event.title,
+      description: event.snippet,
+      category,
+      costLevel: "MEDIUM",
+      timeCommitment: "MEDIUM", 
+      location: event.venue || event.location || location,
+      isPrivate: false,
+      isFeatured: false,
+      date: event.formattedDate ? `Event Date: ${event.formattedDate}` : null,
+      tags: [{ name: eventType || "Event", color: "default" }],
+      eventUrl: event.link,
+      isUserAdded: true,
+      dateAdded: new Date(),
+      lastSelected: null,
+      timesSelected: 0,
+    };
+
+    // Add to wheel
+    onAddToWheel(enhancedActivity);
+
+    // Mark as added
+    setAddedEvents(prev => new Set(prev).add(event.link));
+
     toast({
-      title: "Activity Saved",
-      description: `"${activity.title}" has been added to your activities.`,
+      title: "Added to Wheel",
+      description: `${event.title} has been added to your activity wheel!`,
     });
   };
 
-  const handleOpenDetails = (activity: ActivityType) => {
-    setSelectedEvent(activity);
-    setDetailsDialogOpen(true);
-  };
+  // Date filter options
+  const dateOptions = [
+    { value: "today", label: "Today" },
+    { value: "this weekend", label: "This Weekend" },
+    { value: "this week", label: "This Week" },
+    { value: "next week", label: "Next Week" },
+    { value: "this month", label: "This Month" },
+  ];
 
-  const handleQuickSearch = (term: string) => {
-    setSearchQuery(term);
-    handleSearch(term, searchLocation);
-  };
+  // Event type suggestions
+  const eventTypes = [
+    "Music", "Arts", "Food", "Sports", "Family", "Nightlife", 
+    "Festival", "Theater", "Comedy", "Education", "Networking"
+  ];
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <div className="flex flex-col space-y-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="Search for events (e.g., concerts, festivals, shows)"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 bg-dark border-gray-700"
-            />
-          </div>
-          <div className="relative">
-            <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="Location (e.g., New York, Boston)"
-              value={searchLocation}
-              onChange={(e) => setSearchLocation(e.target.value)}
-              className="pl-9 bg-dark border-gray-700"
-            />
-          </div>
-        </div>
-        <Button 
-          onClick={() => handleSearch()} 
-          className="w-full bg-accent hover:bg-accent/90"
-        >
-          Search Events
-        </Button>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        {popularSearches.map((term, index) => (
-          <Button
-            key={index}
-            variant="outline"
-            size="sm"
-            className="border-gray-700 text-xs"
-            onClick={() => handleQuickSearch(term)}
-          >
-            {term}
-          </Button>
-        ))}
-      </div>
-
-      <div className="space-y-4">
-        <div className="flex flex-row justify-between items-center">
-          <h3 className="text-sm font-medium text-gray-400">Search Results</h3>
-          
-          {searchResults.length > 0 && (
-            <div className="flex items-center gap-1 text-xs text-gray-500">
-              <div className={`w-2 h-2 rounded-full ${isUsingRealData ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-              <span>{isUsingRealData ? 'Using Google Search API' : 'Using demo data'}</span>
+    <div className="w-full space-y-4">
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle>Discover Events</CardTitle>
+          <CardDescription>
+            Find local events to add to your activity wheel
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+            <div className="md:col-span-2">
+              <Input
+                placeholder="Search events (optional)"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full"
+              />
             </div>
-          )}
-        </div>
-        
-        {isLoading ? (
-          // Skeleton loading UI
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <Card key={i} className="bg-dark-surface border-gray-800">
-                <CardContent className="p-4">
-                  <div className="space-y-3">
-                    <Skeleton className="h-4 w-3/4 bg-gray-700" />
-                    <Skeleton className="h-3 w-1/2 bg-gray-700" />
-                    <div className="flex items-center gap-2">
-                      <Skeleton className="h-3 w-1/4 bg-gray-700" />
-                      <Skeleton className="h-3 w-1/4 bg-gray-700" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+            <div>
+              <Input
+                placeholder="Location (e.g., New York)"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                className="w-full"
+              />
+            </div>
+            <div>
+              <Select value={dateFilter} onValueChange={setDateFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="When?" />
+                </SelectTrigger>
+                <SelectContent>
+                  {dateOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-        ) : searchResults.length > 0 ? (
-          <>
-            <div className="space-y-3">
-              {searchResults.map((activity) => (
-                <Card 
-                  key={activity.id}
-                  className="bg-dark-surface border-gray-800 hover:border-gray-700 transition-colors cursor-pointer"
-                  onClick={() => handleOpenDetails(activity)}
+
+          <div className="mb-4">
+            <div className="text-sm font-medium mb-2">Event Type</div>
+            <div className="flex flex-wrap gap-2">
+              {eventTypes.map(type => (
+                <Button
+                  key={type}
+                  variant={eventType === type ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setEventType(type === eventType ? "" : type)}
+                  className="text-xs"
                 >
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-3">
-                      <div className={`rounded-lg p-2 ${activity.iconBgClass} w-10 h-10 flex items-center justify-center`}>
-                        {activity.icon === "music" ? (
-                          <div className="h-5 w-5 text-primary">🎵</div>
-                        ) : activity.icon === "cocktail" ? (
-                          <div className="h-5 w-5 text-secondary">🍸</div>
-                        ) : (
-                          <div className="h-5 w-5 text-accent">🎨</div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-medium mb-1">{activity.title}</h4>
-                        <div className="flex items-center text-xs text-gray-400 mb-1">
-                          <Calendar className="h-3 w-3 mr-1 flex-shrink-0" />
-                          <span className="truncate">{activity.date}</span>
-                        </div>
-                        <div className="flex items-center text-xs text-gray-400 mb-2">
-                          <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
-                          <span className="truncate">{activity.location}</span>
-                        </div>
-                        <div className="flex flex-wrap gap-1">
-                          {activity.tags.map((tag, idx) => (
-                            <span
-                              key={idx}
-                              className={`text-xs px-1.5 py-0.5 rounded-full ${
-                                tag.color === "secondary"
-                                  ? "bg-secondary/20 text-secondary"
-                                  : tag.color === "accent"
-                                  ? "bg-accent/20 text-accent"
-                                  : "bg-gray-700 text-gray-300"
-                              }`}
-                            >
-                              {tag.name}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 w-8 p-0 rounded-full"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSaveActivity(activity);
-                        }}
-                      >
-                        <span className="sr-only">Save</span>
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="h-4 w-4"
-                        >
-                          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                          <polyline points="17 21 17 13 7 13 7 21" />
-                          <polyline points="7 3 7 8 15 8" />
-                        </svg>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                  {type}
+                </Button>
               ))}
             </div>
-            
-            {!isUsingRealData && (
-              <div className="bg-dark rounded-lg border border-gray-800 p-4">
-                <h4 className="text-sm font-medium mb-2">Want real Google search results?</h4>
-                <p className="text-xs text-gray-400 mb-3">
-                  This app is using demo data for search results. To use the actual Google Custom Search API:
-                </p>
-                <ol className="list-decimal list-inside text-xs text-gray-400 space-y-1 ml-2 mb-3">
-                  <li>Create a <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">Google Cloud Platform</a> account</li>
-                  <li>Create a new project and enable the "Custom Search API"</li>
-                  <li>Create API credentials to get an API key</li>
-                  <li>Go to the <a href="https://programmablesearchengine.google.com/controlpanel/create" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">Programmable Search Engine</a> page to create a search engine</li>
-                  <li>Add your API key and Search Engine ID to the environment variables</li>
-                </ol>
-                <div className="text-xs bg-gray-900 p-2 rounded font-mono mb-3">
-                  <code>GOOGLE_SEARCH_API_KEY=your_api_key</code><br />
-                  <code>GOOGLE_SEARCH_ENGINE_ID=your_search_engine_id</code>
-                </div>
-                <p className="text-xs text-gray-500">Note: Google Custom Search API has a free tier that allows 100 search queries per day.</p>
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="text-center py-10 border border-dashed border-gray-700 rounded-lg">
-            <Info className="h-12 w-12 mx-auto mb-3 text-gray-500" />
-            <p className="text-gray-400 mb-4">No event results to display.</p>
-            <p className="text-sm text-gray-500">
-              Try searching for "concerts in Chicago" or selecting a popular search above.
-            </p>
           </div>
-        )}
-      </div>
 
-      {selectedEvent && (
-        <EventDetailsDialog
-          event={selectedEvent}
-          isOpen={detailsDialogOpen}
-          onOpenChange={setDetailsDialogOpen}
-          onSaveActivity={handleSaveActivity}
-        />
+          <Button 
+            onClick={handleSearch} 
+            disabled={isLoading || isSearching}
+            className="w-full"
+          >
+            {(isLoading || isSearching) ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Search className="mr-2 h-4 w-4" />
+            )}
+            Search for Events
+          </Button>
+        </CardContent>
+      </Card>
+
+      {events.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {events.map((event, index) => (
+            <Card key={`${event.link}-${index}`} className="overflow-hidden">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg line-clamp-2">{event.title}</CardTitle>
+              </CardHeader>
+              <CardContent className="pb-4 pt-0">
+                <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-3 mb-3">
+                  {event.snippet}
+                </p>
+                <div className="flex flex-col space-y-1.5 mb-3">
+                  {event.formattedDate && (
+                    <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
+                      <CalendarDays className="mr-1 h-3 w-3" />
+                      <span>{event.formattedDate}</span>
+                    </div>
+                  )}
+                  {(event.venue || event.location) && (
+                    <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
+                      <MapPin className="mr-1 h-3 w-3" />
+                      <span>{event.venue || event.location}</span>
+                    </div>
+                  )}
+                </div>
+                <Button
+                  className="w-full"
+                  variant={addedEvents.has(event.link) ? "secondary" : "default"}
+                  onClick={() => handleAddToWheel(event)}
+                  disabled={addedEvents.has(event.link)}
+                >
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  {addedEvents.has(event.link) ? "Added to Wheel" : "Add to Wheel"}
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {isSearching && (
+        <div className="flex justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+        </div>
+      )}
+
+      {!isSearching && events.length === 0 && searchQuery && (
+        <div className="text-center py-8">
+          <p className="text-gray-500">No events found. Try different search terms.</p>
+        </div>
       )}
     </div>
   );

@@ -5,15 +5,17 @@ import { useToast } from '@/hooks/use-toast';
 import CategoryFilter from '@/components/CategoryFilter';
 import { CategoryType, CostLevelType, TimeCommitmentType } from '@/lib/activityCategories';
 import { Button } from '@/components/ui/button';
-import { Filter, RefreshCw, Instagram } from 'lucide-react';
+import { Filter, RefreshCw, Instagram, CalendarRange, Map } from 'lucide-react';
 import InstagramActivityScraper from '@/components/InstagramActivityScraper';
+import GoogleEventsExplorer from '@/components/GoogleEventsExplorer';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function ActivityWheelPage() {
   const { toast } = useToast();
   const [activities, setActivities] = useState<EnhancedActivityType[]>([]);
   const [filteredActivities, setFilteredActivities] = useState<EnhancedActivityType[]>([]);
   const [showFilters, setShowFilters] = useState(false);
-  const [showInstagramScraper, setShowInstagramScraper] = useState(false);
+  const [activeTab, setActiveTab] = useState("wheel");
   const [filters, setFilters] = useState<{
     categories: CategoryType[];
     costs: CostLevelType[];
@@ -224,31 +226,48 @@ export default function ActivityWheelPage() {
         Spin the wheel to discover your next adventure!
       </p>
       
-      {/* Action buttons */}
-      <div className="flex justify-center gap-4 mb-8">
-        <Button 
-          variant="outline" 
-          onClick={() => setShowFilters(!showFilters)}
-          className="md:hidden"
-        >
-          <Filter className="mr-2 h-4 w-4" />
-          {showFilters ? 'Hide Filters' : 'Show Filters'}
-        </Button>
-        
-        <Button 
-          variant="outline"
-          onClick={() => setShowInstagramScraper(!showInstagramScraper)}
-          className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-pink-500/30"
-        >
-          <Instagram className="mr-2 h-4 w-4 text-pink-500" />
-          {showInstagramScraper ? 'Hide Instagram Import' : 'Import from Instagram'}
-        </Button>
-      </div>
+      {/* Tab navigation */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mb-8">
+        <TabsList className="grid w-full max-w-md mx-auto grid-cols-3">
+          <TabsTrigger value="wheel">
+            <Filter className="mr-2 h-4 w-4" />
+            Wheel
+          </TabsTrigger>
+          <TabsTrigger value="events">
+            <CalendarRange className="mr-2 h-4 w-4" /> 
+            Find Events
+          </TabsTrigger>
+          <TabsTrigger value="instagram">
+            <Instagram className="mr-2 h-4 w-4 text-pink-500" />
+            Instagram
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+      
+      {/* For mobile filters toggle button */}
+      {activeTab === "wheel" && (
+        <div className="flex justify-center mb-4 md:hidden">
+          <Button 
+            variant="outline"
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            <Filter className="mr-2 h-4 w-4" />
+            {showFilters ? 'Hide Filters' : 'Show Filters'}
+          </Button>
+        </div>
+      )}
       
       {/* Instagram scraper */}
-      {showInstagramScraper && (
-        <div className="mb-10">
+      {activeTab === "instagram" && (
+        <div className="mb-8">
           <InstagramActivityScraper onActivitiesAdded={handleInstagramActivitiesAdded} />
+        </div>
+      )}
+      
+      {/* Google Events Explorer */}
+      {activeTab === "events" && (
+        <div className="mb-8">
+          <GoogleEventsExplorer onAddToWheel={handleInstagramActivitiesAdded} />
         </div>
       )}
       

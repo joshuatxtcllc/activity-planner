@@ -19,7 +19,7 @@ interface SpinningWheelProps {
 }
 
 const SpinningWheel: React.FC<SpinningWheelProps> = ({ 
-  activities, 
+  activities: allActivities, 
   onActivitySelected 
 }) => {
   const [spinning, setSpinning] = useState(false);
@@ -29,6 +29,45 @@ const SpinningWheel: React.FC<SpinningWheelProps> = ({
   const wheelRef = useRef<HTMLDivElement>(null);
   const spinTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const spinDuration = 5000; // 5 seconds of spinning
+  
+  // Filter out expired events
+  const activities = allActivities.filter(activity => {
+    if (!activity.date) return true; // Keep activities without dates
+    
+    const eventDate = parseEventDate(activity.date);
+    if (!eventDate) return true; // Keep activities with unparseable dates
+    
+    // Compare with current date - keep only current or future events
+    return eventDate >= new Date();
+  });
+  
+  // Helper function to parse event dates in various formats
+  function parseEventDate(dateStr: string): Date | null {
+    try {
+      // Example formats: "Fri, Apr 10 • 9:00 PM", "Sun, Apr 12 • 6:30 PM"
+      const dateMatch = dateStr.match(/([A-Za-z]+), ([A-Za-z]+) (\d+)/);
+      if (!dateMatch) return null;
+      
+      const [, , month, day] = dateMatch;
+      const currentYear = new Date().getFullYear();
+      const monthIndex = getMonthIndex(month);
+      
+      if (monthIndex === -1) return null;
+      
+      // Create date object (using noon to avoid timezone issues)
+      const date = new Date(currentYear, monthIndex, parseInt(day, 10), 12, 0, 0);
+      return date;
+    } catch (e) {
+      console.error("Error parsing date:", e);
+      return null;
+    }
+  }
+  
+  // Helper to convert month name to index
+  function getMonthIndex(monthName: string): number {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months.findIndex(m => monthName.startsWith(m));
+  }
 
   // Calculate wheel segments based on activities
   const totalActivities = activities.length;
