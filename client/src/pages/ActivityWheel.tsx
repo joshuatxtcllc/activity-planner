@@ -5,10 +5,11 @@ import { useToast } from '@/hooks/use-toast';
 import CategoryFilter from '@/components/CategoryFilter';
 import { CategoryType, CostLevelType, TimeCommitmentType } from '@/lib/activityCategories';
 import { Button } from '@/components/ui/button';
-import { Filter, RefreshCw, Instagram, CalendarRange, Map } from 'lucide-react';
+import { Filter, RefreshCw, Instagram, CalendarRange, Map, Plus } from 'lucide-react';
 import InstagramActivityScraper from '@/components/InstagramActivityScraper';
 import { GoogleEventsExplorer } from '@/components/GoogleEventsExplorer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import ActivityCreationForm from '@/components/ActivityCreationForm';
 
 export default function ActivityWheelPage() {
   const { toast } = useToast();
