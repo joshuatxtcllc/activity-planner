@@ -1,20 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import SpinningWheel from '@/components/SpinningWheel';
-import { EnhancedActivityType, markActivityAsSelected } from '@/lib/activityModel';
+import { EnhancedActivityType, markActivityAsSelected, upgradeToEnhancedActivity } from '@/lib/activityModel';
 import { useToast } from '@/hooks/use-toast';
 import CategoryFilter from '@/components/CategoryFilter';
 import { CategoryType, CostLevelType, TimeCommitmentType } from '@/lib/activityCategories';
 import { Button } from '@/components/ui/button';
-import { Filter, RefreshCw } from 'lucide-react';
-
-// Import activity transformation helper
-import { upgradeToEnhancedActivity } from '@/lib/activityModel';
+import { Filter, RefreshCw, Instagram } from 'lucide-react';
+import InstagramActivityScraper from '@/components/InstagramActivityScraper';
 
 export default function ActivityWheelPage() {
   const { toast } = useToast();
   const [activities, setActivities] = useState<EnhancedActivityType[]>([]);
   const [filteredActivities, setFilteredActivities] = useState<EnhancedActivityType[]>([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [showInstagramScraper, setShowInstagramScraper] = useState(false);
   const [filters, setFilters] = useState<{
     categories: CategoryType[];
     costs: CostLevelType[];
@@ -142,13 +141,116 @@ export default function ActivityWheelPage() {
       times: []
     });
   };
+  
+  // Handler for adding Instagram activities to the wheel
+  const handleInstagramActivitiesAdded = (newActivities: EnhancedActivityType[]) => {
+    if (newActivities.length === 0) return;
+    
+    // Add the new activities to our state
+    setActivities(prev => [...prev, ...newActivities]);
+    
+    // Also add to filtered activities if they match the current filters
+    const matchingActivities = newActivities.filter(activity => {
+      const categoryMatch = filters.categories.length === 0 || 
+                            filters.categories.includes(activity.category as CategoryType);
+      const costMatch = filters.costs.length === 0 || 
+                        filters.costs.includes(activity.costLevel as CostLevelType);
+      const timeMatch = filters.times.length === 0 || 
+                        filters.times.includes(activity.timeCommitment as TimeCommitmentType);
+      
+      return categoryMatch && costMatch && timeMatch;
+    });
+    
+    if (matchingActivities.length > 0) {
+      setFilteredActivities(prev => [...prev, ...matchingActivities]);
+    }
+    
+    // Save the new activities to the database
+    Promise.all(newActivities.map(async (activity) => {
+      try {
+        // Convert enhanced activity to insert format
+        const activityToSave = {
+          title: activity.title,
+          description: activity.description,
+          category: activity.category,
+          costLevel: activity.costLevel,
+          timeCommitment: activity.timeCommitment,
+          location: activity.location,
+          isPrivate: activity.isPrivate,
+          isFeatured: activity.isFeatured,
+          seasonality: activity.seasonality,
+          imageUrl: activity.imageUrl,
+          eventUrl: activity.eventUrl,
+          contactInfo: activity.contactInfo,
+          rating: activity.rating,
+          date: activity.date,
+          tags: activity.tags,
+          coordinates: activity.coordinates,
+          venue: activity.venue,
+          venueName: activity.venueName,
+          isUserAdded: true,
+          attendees: activity.attendees,
+          icon: activity.icon,
+          iconBgClass: activity.iconBgClass
+        };
+        
+        // Save to database
+        const response = await fetch('/api/activities', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(activityToSave),
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to save activity');
+        }
+      } catch (error) {
+        console.error('Error saving Instagram activity:', error);
+      }
+    }));
+    
+    toast({
+      title: "Activities Added",
+      description: `${newActivities.length} activities have been added from Instagram.`,
+    });
+  };
 
   return (
     <div className="container mx-auto py-8">
       <h1 className="text-3xl font-bold mb-2 text-center">Activity Wheel</h1>
-      <p className="text-center text-gray-500 dark:text-gray-400 mb-8">
+      <p className="text-center text-gray-500 dark:text-gray-400 mb-6">
         Spin the wheel to discover your next adventure!
       </p>
+      
+      {/* Action buttons */}
+      <div className="flex justify-center gap-4 mb-8">
+        <Button 
+          variant="outline" 
+          onClick={() => setShowFilters(!showFilters)}
+          className="md:hidden"
+        >
+          <Filter className="mr-2 h-4 w-4" />
+          {showFilters ? 'Hide Filters' : 'Show Filters'}
+        </Button>
+        
+        <Button 
+          variant="outline"
+          onClick={() => setShowInstagramScraper(!showInstagramScraper)}
+          className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-pink-500/30"
+        >
+          <Instagram className="mr-2 h-4 w-4 text-pink-500" />
+          {showInstagramScraper ? 'Hide Instagram Import' : 'Import from Instagram'}
+        </Button>
+      </div>
+      
+      {/* Instagram scraper */}
+      {showInstagramScraper && (
+        <div className="mb-10">
+          <InstagramActivityScraper onActivitiesAdded={handleInstagramActivitiesAdded} />
+        </div>
+      )}
       
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {/* Side panel for filters */}
@@ -177,22 +279,30 @@ export default function ActivityWheelPage() {
         
         {/* Main wheel area */}
         <div className="md:col-span-3 flex flex-col items-center">
-          <div className="mb-4 md:hidden">
-            <Button 
-              variant="outline" 
-              onClick={() => setShowFilters(!showFilters)}
-              className="w-full"
-            >
-              <Filter className="mr-2 h-4 w-4" />
-              {showFilters ? 'Hide Filters' : 'Show Filters'}
-            </Button>
-          </div>
-          
           <div className="w-full bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
-            <SpinningWheel 
-              activities={filteredActivities}
-              onActivitySelected={handleActivitySelected}
-            />
+            {filteredActivities.length > 0 ? (
+              <SpinningWheel 
+                activities={filteredActivities}
+                onActivitySelected={handleActivitySelected}
+              />
+            ) : (
+              <div className="text-center py-20">
+                <h3 className="text-xl font-semibold mb-4">No activities available</h3>
+                <p className="text-gray-500 mb-8">
+                  You don't have any activities that match your current filters.
+                </p>
+                <div className="flex justify-center">
+                  <Button onClick={clearFilters} className="mr-4">
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Clear Filters
+                  </Button>
+                  <Button onClick={() => setShowInstagramScraper(true)}>
+                    <Instagram className="mr-2 h-4 w-4" />
+                    Import from Instagram
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
