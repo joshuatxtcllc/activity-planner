@@ -86,11 +86,11 @@ export function GoogleEventsExplorer({ onSaveActivity }: GoogleEventsExplorerPro
       console.log("Searching Google for events:", searchParams);
       
       // Execute the query
-      const results = await refetch();
+      const results = await searchGoogleEvents(searchParams);
       
       // Update state with results
-      if (results.data) {
-        setEvents(results.data);
+      if (results && Array.isArray(results)) {
+        setEvents(results);
       } else {
         setEvents([]);
       }
