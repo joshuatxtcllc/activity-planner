@@ -107,8 +107,11 @@ export default function CalendarWidget({ activities, maxDisplay = 3 }: CalendarW
   const hasActivities = (day: Date) => {
     return activities.some(activity => {
       try {
+        // If activity.date is null or undefined, return false
+        if (!activity.date) return false;
+        
         // Parse the activity date string
-        const dateMatch = activity.date?.match(/([A-Za-z]+), ([A-Za-z]+) (\d+)/); //Added null check here
+        const dateMatch = activity.date.match(/([A-Za-z]+), ([A-Za-z]+) (\d+)/);
         if (!dateMatch) return false;
 
         const [, , month, dayOfMonth] = dateMatch;
