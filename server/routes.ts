@@ -1,7 +1,8 @@
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import fetch from "node-fetch";
+import crypto from "crypto";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API routes
@@ -332,6 +333,167 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Google Custom Search JSON API for events
+  // Instagram OAuth and API routes
+  app.get("/api/instagram/auth", (req, res) => {
+    try {
+      // Generate a random state value for security
+      const state = crypto.randomBytes(16).toString('hex');
+      
+      // Store the state in the session to validate on return
+      if (req.session) {
+        req.session.instagramState = state;
+      }
+      
+      const redirectUri = `${req.protocol}://${req.hostname}/api/instagram/callback`;
+      const clientId = process.env.INSTAGRAM_APP_ID;
+      
+      if (!clientId) {
+        return res.status(500).json({ error: "Instagram App ID is not configured" });
+      }
+      
+      // Build the Instagram authorization URL
+      const instagramAuthUrl = new URL("https://api.instagram.com/oauth/authorize");
+      instagramAuthUrl.searchParams.append("client_id", clientId);
+      instagramAuthUrl.searchParams.append("redirect_uri", redirectUri);
+      instagramAuthUrl.searchParams.append("scope", "user_profile,user_media");
+      instagramAuthUrl.searchParams.append("response_type", "code");
+      instagramAuthUrl.searchParams.append("state", state);
+      
+      // Redirect the user to Instagram for authorization
+      res.redirect(instagramAuthUrl.toString());
+    } catch (error) {
+      console.error("Instagram auth error:", error);
+      res.status(500).json({ error: "Failed to initiate Instagram authentication" });
+    }
+  });
+  
+  app.get("/api/instagram/callback", async (req, res) => {
+    try {
+      const { code, state } = req.query;
+      
+      // Validate state to prevent CSRF attacks
+      if (!req.session || req.session.instagramState !== state) {
+        return res.status(400).json({ error: "Invalid state parameter" });
+      }
+      
+      // Clear the state from session
+      delete req.session.instagramState;
+      
+      if (!code) {
+        return res.status(400).json({ error: "No authorization code received from Instagram" });
+      }
+      
+      const clientId = process.env.INSTAGRAM_APP_ID;
+      const clientSecret = process.env.INSTAGRAM_APP_SECRET;
+      const redirectUri = `${req.protocol}://${req.hostname}/api/instagram/callback`;
+      
+      if (!clientId || !clientSecret) {
+        return res.status(500).json({ error: "Instagram API credentials are not configured" });
+      }
+      
+      // Exchange the authorization code for an access token
+      const tokenResponse = await fetch("https://api.instagram.com/oauth/access_token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          client_id: clientId,
+          client_secret: clientSecret,
+          grant_type: "authorization_code",
+          redirect_uri: redirectUri,
+          code: code as string,
+        }),
+      });
+      
+      if (!tokenResponse.ok) {
+        console.error("Instagram token error:", await tokenResponse.text());
+        return res.status(500).json({ error: "Failed to obtain Instagram access token" });
+      }
+      
+      const tokenData = await tokenResponse.json() as { access_token: string, user_id: string };
+      
+      // Store the access token in the session
+      if (req.session) {
+        req.session.instagramAccessToken = tokenData.access_token;
+        req.session.instagramUserId = tokenData.user_id;
+      }
+      
+      // Redirect to the Instagram scraper component
+      res.redirect("/wheel?instagram=connected");
+    } catch (error) {
+      console.error("Instagram callback error:", error);
+      res.status(500).json({ error: "Failed to process Instagram authentication" });
+    }
+  });
+  
+  app.get("/api/instagram/user", async (req, res) => {
+    try {
+      if (!req.session || !req.session.instagramAccessToken) {
+        return res.status(401).json({ error: "Not authenticated with Instagram" });
+      }
+      
+      const accessToken = req.session.instagramAccessToken;
+      const userId = req.session.instagramUserId;
+      
+      // Fetch the user profile using the Graph API
+      const userResponse = await fetch(
+        `https://graph.instagram.com/v13.0/${userId}?fields=id,username&access_token=${accessToken}`
+      );
+      
+      if (!userResponse.ok) {
+        console.error("Instagram user profile error:", await userResponse.text());
+        return res.status(500).json({ error: "Failed to fetch Instagram user profile" });
+      }
+      
+      const userData = await userResponse.json();
+      res.json(userData);
+    } catch (error) {
+      console.error("Instagram user profile error:", error);
+      res.status(500).json({ error: "Failed to fetch Instagram user profile" });
+    }
+  });
+  
+  app.get("/api/instagram/media", async (req, res) => {
+    try {
+      if (!req.session || !req.session.instagramAccessToken) {
+        return res.status(401).json({ error: "Not authenticated with Instagram" });
+      }
+      
+      const accessToken = req.session.instagramAccessToken;
+      const userId = req.session.instagramUserId;
+      
+      // Fetch user's media using the Graph API
+      const mediaResponse = await fetch(
+        `https://graph.instagram.com/v13.0/${userId}/media?fields=id,caption,media_type,media_url,permalink,thumbnail_url,timestamp,username&access_token=${accessToken}`
+      );
+      
+      if (!mediaResponse.ok) {
+        console.error("Instagram media error:", await mediaResponse.text());
+        return res.status(500).json({ error: "Failed to fetch Instagram media" });
+      }
+      
+      const mediaData = await mediaResponse.json();
+      res.json(mediaData);
+    } catch (error) {
+      console.error("Instagram media error:", error);
+      res.status(500).json({ error: "Failed to fetch Instagram media" });
+    }
+  });
+  
+  app.get("/api/instagram/status", (req, res) => {
+    const isConnected = !!(req.session && req.session.instagramAccessToken);
+    res.json({ connected: isConnected });
+  });
+  
+  app.get("/api/instagram/logout", (req, res) => {
+    if (req.session) {
+      delete req.session.instagramAccessToken;
+      delete req.session.instagramUserId;
+    }
+    res.json({ success: true });
+  });
+
   app.get("/api/proxy/google-search", async (req, res) => {
     try {
       const { q } = req.query;
