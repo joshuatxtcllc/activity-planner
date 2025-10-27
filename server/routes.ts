@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import fetch from "node-fetch";
 import crypto from "crypto";
 import "express-session";
+import { cacheMiddleware, rateLimitMiddleware } from "./middleware";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API routes
@@ -110,8 +111,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Local events aggregation endpoint
-  app.get("/api/local-events", async (req, res) => {
+  // Local events aggregation endpoint with caching and rate limiting
+  app.get("/api/local-events", rateLimitMiddleware(50, 15), cacheMiddleware(15), async (req, res) => {
     try {
       const { lat, lng, category = 'all' } = req.query;
 
@@ -122,6 +123,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Fetching local events for lat: ${lat}, lng: ${lng}, category: ${category}`);
 
       const allEvents: any[] = [];
+      const sources: string[] = [];
 
       // Fetch from Ticketmaster if API key is available
       const ticketmasterKey = process.env.VITE_TICKETMASTER_API_KEY;
@@ -172,10 +174,138 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }));
 
             allEvents.push(...formattedTmEvents);
+            sources.push('ticketmaster');
             console.log(`Added ${formattedTmEvents.length} events from Ticketmaster`);
           }
         } catch (error) {
           console.error("Error fetching from Ticketmaster:", error);
+        }
+      }
+
+      // Fetch from Eventbrite if API key is available
+      const eventbriteKey = process.env.VITE_EVENTBRITE_API_KEY;
+      if (eventbriteKey) {
+        try {
+          const eventbriteUrl = `https://www.eventbriteapi.com/v3/events/search/?location.latitude=${lat}&location.longitude=${lng}&location.within=25km&expand=venue,category,ticket_availability&sort_by=date`;
+          const ebResponse = await fetch(eventbriteUrl, {
+            headers: {
+              'Authorization': `Bearer ${eventbriteKey}`,
+              'Accept': 'application/json'
+            }
+          });
+
+          if (ebResponse.ok) {
+            const ebData = await ebResponse.json();
+            const ebEvents = ebData?.events || [];
+
+            // Transform Eventbrite events to standard format
+            const formattedEbEvents = ebEvents.map((event: any, index: number) => ({
+              id: event.id || `eb-${index}`,
+              title: event.name?.text || "Unnamed Event",
+              source: "Eventbrite",
+              isPrivate: false,
+              isFeatured: false,
+              date: event.start?.local
+                ? new Date(event.start.local).toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric'
+                  })
+                : "Date TBD",
+              location: event.venue?.name || "Location TBD",
+              tags: [
+                { name: event.category?.name || "Event", color: "secondary" },
+                { name: event.format?.name || "General", color: "accent" }
+              ],
+              attendees: Math.floor(Math.random() * 25) + 3,
+              icon: event.category?.name?.toLowerCase().includes('music') ? "music" :
+                    event.category?.name?.toLowerCase().includes('food') ? "cocktail" : "art",
+              iconBgClass: "bg-secondary bg-opacity-30",
+              externalUrl: event.url,
+              imageUrl: event.logo?.url,
+              description: event.description?.text || event.summary || "Check out this event!",
+              price: event.is_free ? "Free" :
+                     event.ticket_availability?.minimum_ticket_price?.display || "See event page"
+            }));
+
+            allEvents.push(...formattedEbEvents);
+            sources.push('eventbrite');
+            console.log(`Added ${formattedEbEvents.length} events from Eventbrite`);
+          }
+        } catch (error) {
+          console.error("Error fetching from Eventbrite:", error);
+        }
+      }
+
+      // Fetch from TripAdvisor if API key is available
+      const tripadvisorKey = process.env.VITE_TRIPADVISOR_API_KEY;
+      if (tripadvisorKey) {
+        try {
+          // First, search for location ID
+          const locationUrl = `https://api.content.tripadvisor.com/api/v1/location/search?key=${tripadvisorKey}&latLng=${lat},${lng}&searchQuery=attractions&category=attractions&radius=25&language=en&radiusUnit=km`;
+          const locationResponse = await fetch(locationUrl, {
+            headers: {
+              'Accept': 'application/json',
+              'User-Agent': 'ActivityPlanner/1.0'
+            }
+          });
+
+          if (locationResponse.ok) {
+            const locationData = await locationResponse.json();
+            const locations = locationData?.data || [];
+
+            // Fetch attractions for the first few locations
+            for (const location of locations.slice(0, 3)) {
+              try {
+                const attractionUrl = `https://api.content.tripadvisor.com/api/v1/location/${location.location_id}/details?key=${tripadvisorKey}&language=en&currency=USD`;
+                const attractionResponse = await fetch(attractionUrl, {
+                  headers: {
+                    'Accept': 'application/json',
+                    'User-Agent': 'ActivityPlanner/1.0'
+                  }
+                });
+
+                if (attractionResponse.ok) {
+                  const attraction = await attractionResponse.json();
+
+                  // Transform TripAdvisor attractions to event format
+                  const formattedAttraction = {
+                    id: attraction.location_id || `ta-${Math.random()}`,
+                    title: attraction.name || "Unnamed Attraction",
+                    source: "TripAdvisor",
+                    isPrivate: false,
+                    isFeatured: false,
+                    date: "Open Daily",
+                    location: attraction.address?.address_string || "Location TBD",
+                    tags: [
+                      { name: "Attraction", color: "secondary" },
+                      { name: attraction.subcategory?.[0]?.name || "Activity", color: "accent" }
+                    ],
+                    attendees: Math.floor(Math.random() * 20) + 5,
+                    icon: "art",
+                    iconBgClass: "bg-accent bg-opacity-30",
+                    externalUrl: attraction.web_url,
+                    imageUrl: attraction.photo?.images?.large?.url,
+                    description: attraction.description || "Explore this attraction!",
+                    price: attraction.price || "Varies",
+                    rating: attraction.rating,
+                    numReviews: attraction.num_reviews
+                  };
+
+                  allEvents.push(formattedAttraction);
+                }
+              } catch (error) {
+                console.error("Error fetching TripAdvisor attraction details:", error);
+              }
+            }
+
+            if (locations.length > 0) {
+              sources.push('tripadvisor');
+              console.log(`Added TripAdvisor attractions`);
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching from TripAdvisor:", error);
         }
       }
 
@@ -192,7 +322,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         events: filteredEvents,
         count: filteredEvents.length,
-        sources: ['ticketmaster']
+        sources: sources
       });
     } catch (error) {
       console.error("Error in /api/local-events:", error);
@@ -206,7 +336,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Proxy endpoints for third-party APIs to avoid CORS issues
 
   // Proxy endpoint for Ticketmaster API
-  app.get("/api/proxy/ticketmaster", async (req, res) => {
+  app.get("/api/proxy/ticketmaster", rateLimitMiddleware(30, 15), cacheMiddleware(10), async (req, res) => {
     try {
       const { apiKey, latitude, longitude, radius = 25 } = req.query;
       
@@ -268,7 +398,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Proxy endpoint for Eventbrite API
-  app.get("/api/proxy/eventbrite", async (req, res) => {
+  app.get("/api/proxy/eventbrite", rateLimitMiddleware(30, 15), cacheMiddleware(10), async (req, res) => {
     try {
       const { apiKey, latitude, longitude, radius = 25 } = req.query;
       
@@ -326,7 +456,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Proxy endpoint for TripAdvisor location search
-  app.get("/api/proxy/tripadvisor/location", async (req, res) => {
+  app.get("/api/proxy/tripadvisor/location", rateLimitMiddleware(30, 15), cacheMiddleware(10), async (req, res) => {
     try {
       const { apiKey, latitude, longitude } = req.query;
       
@@ -376,7 +506,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Proxy endpoint for TripAdvisor attractions
-  app.get("/api/proxy/tripadvisor/attractions", async (req, res) => {
+  app.get("/api/proxy/tripadvisor/attractions", rateLimitMiddleware(30, 15), cacheMiddleware(10), async (req, res) => {
     try {
       const { apiKey, locationId } = req.query;
       
@@ -662,7 +792,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ success: true });
   });
 
-  app.get("/api/proxy/google-search", async (req, res) => {
+  app.get("/api/proxy/google-search", rateLimitMiddleware(20, 15), cacheMiddleware(15), async (req, res) => {
     try {
       const { q } = req.query;
       
