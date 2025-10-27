@@ -110,6 +110,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Local events aggregation endpoint
+  app.get("/api/local-events", async (req, res) => {
+    try {
+      const { lat, lng, category = 'all' } = req.query;
+
+      if (!lat || !lng) {
+        return res.status(400).json({ error: "Latitude and longitude are required" });
+      }
+
+      console.log(`Fetching local events for lat: ${lat}, lng: ${lng}, category: ${category}`);
+
+      const allEvents: any[] = [];
+
+      // Fetch from Ticketmaster if API key is available
+      const ticketmasterKey = process.env.VITE_TICKETMASTER_API_KEY;
+      if (ticketmasterKey) {
+        try {
+          const ticketmasterUrl = `https://app.ticketmaster.com/discovery/v2/events.json?apikey=${ticketmasterKey}&latlong=${lat},${lng}&radius=25&size=50&sort=date,asc`;
+          const tmResponse = await fetch(ticketmasterUrl, {
+            headers: {
+              'Accept': 'application/json',
+              'User-Agent': 'ActivityPlanner/1.0'
+            }
+          });
+
+          if (tmResponse.ok) {
+            const tmData = await tmResponse.json();
+            const tmEvents = tmData?._embedded?.events || [];
+
+            // Transform Ticketmaster events to standard format
+            const formattedTmEvents = tmEvents.map((event: any, index: number) => ({
+              id: event.id || `tm-${index}`,
+              title: event.name || "Unnamed Event",
+              source: "Ticketmaster",
+              isPrivate: false,
+              isFeatured: index < 3,
+              date: event.dates?.start?.localDate
+                ? new Date(event.dates.start.localDate).toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric'
+                  })
+                : "Date TBD",
+              location: event._embedded?.venues?.[0]?.name || "Location TBD",
+              tags: [
+                { name: event.classifications?.[0]?.segment?.name || "Event", color: "secondary" },
+                { name: event.classifications?.[0]?.genre?.name || "Entertainment", color: "accent" }
+              ],
+              attendees: Math.floor(Math.random() * 30) + 5,
+              icon: event.classifications?.[0]?.segment?.name === "Music" ? "music" :
+                    event.classifications?.[0]?.segment?.name === "Sports" ? "sports" :
+                    event.classifications?.[0]?.segment?.name === "Arts" ? "art" : "event",
+              iconBgClass: "bg-primary bg-opacity-30",
+              externalUrl: event.url,
+              imageUrl: event.images?.[0]?.url,
+              description: event.info || event.description || "Join us for this exciting event!",
+              price: event.priceRanges ?
+                `$${event.priceRanges[0].min} - $${event.priceRanges[0].max}` :
+                "Price TBD"
+            }));
+
+            allEvents.push(...formattedTmEvents);
+            console.log(`Added ${formattedTmEvents.length} events from Ticketmaster`);
+          }
+        } catch (error) {
+          console.error("Error fetching from Ticketmaster:", error);
+        }
+      }
+
+      // Filter by category if not 'all'
+      let filteredEvents = allEvents;
+      if (category !== 'all') {
+        filteredEvents = allEvents.filter(event =>
+          event.tags?.some((tag: any) =>
+            tag.name.toLowerCase().includes(category.toLowerCase())
+          )
+        );
+      }
+
+      res.json({
+        events: filteredEvents,
+        count: filteredEvents.length,
+        sources: ['ticketmaster']
+      });
+    } catch (error) {
+      console.error("Error in /api/local-events:", error);
+      res.status(500).json({
+        error: "Failed to fetch local events",
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   // Proxy endpoints for third-party APIs to avoid CORS issues
 
   // Proxy endpoint for Ticketmaster API
