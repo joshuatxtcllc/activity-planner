@@ -34,7 +34,7 @@ interface TicketmasterEvent {
 }
 
 export async function scrapeTicketmaster(): Promise<NewEvent[]> {
-  const apiKey = process.env.TICKETMASTER_API_KEY;
+  const apiKey = process.env.TICKETMASTER_API_KEY?.trim();
   if (!apiKey) {
     logger.warn("Ticketmaster API key not configured, skipping scraper");
     return [];
@@ -49,15 +49,17 @@ export async function scrapeTicketmaster(): Promise<NewEvent[]> {
     const sunday = new Date(friday);
     sunday.setDate(sunday.getDate() + 2);
 
+    // Houston coordinates
     const response = await axios.get(
       "https://app.ticketmaster.com/discovery/v2/events.json",
       {
         params: {
           apikey: apiKey,
-          city: "Houston",
-          stateCode: "TX",
-          startDateTime: friday.toISOString(),
-          endDateTime: sunday.toISOString(),
+          latlong: "29.7604,-95.3698", // Houston coordinates
+          radius: "25",
+          unit: "miles",
+          startDateTime: friday.toISOString().split('.')[0] + "Z",
+          endDateTime: sunday.toISOString().split('.')[0] + "Z",
           size: 100,
           sort: "date,asc",
         },
