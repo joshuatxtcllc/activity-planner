@@ -33,7 +33,7 @@ interface EventbriteEvent {
 }
 
 export async function scrapeEventbrite(): Promise<NewEvent[]> {
-  const apiKey = process.env.EVENTBRITE_API_KEY;
+  const apiKey = process.env.EVENTBRITE_API_KEY?.trim();
   if (!apiKey) {
     logger.warn("Eventbrite API key not configured, skipping scraper");
     return [];
@@ -48,19 +48,20 @@ export async function scrapeEventbrite(): Promise<NewEvent[]> {
     const sunday = new Date(friday);
     sunday.setDate(sunday.getDate() + 2);
 
+    // Use latitude/longitude for more reliable results
     const response = await axios.get(
-      "https://www.eventbriteapi.com/v3/events/search/",
+      "https://www.eventbriteapi.com/v3/events/search",
       {
         headers: {
           Authorization: `Bearer ${apiKey}`,
         },
         params: {
-          "location.address": "Houston, TX",
-          "location.within": "25mi",
+          "location.latitude": "29.7604",
+          "location.longitude": "-95.3698",
+          "location.within": "25km",
           "start_date.range_start": friday.toISOString(),
           "start_date.range_end": sunday.toISOString(),
           expand: "venue,ticket_availability",
-          "page_size": 100,
         },
       }
     );

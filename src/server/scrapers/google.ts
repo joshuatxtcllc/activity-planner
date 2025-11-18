@@ -8,11 +8,11 @@ import { generateEventHash } from "../utils/deduplication";
  * Searches for Houston events on local event sites
  */
 export async function scrapeGoogle(): Promise<NewEvent[]> {
-  const apiKey = process.env.GOOGLE_API_KEY;
-  const searchEngineId = process.env.GOOGLE_SEARCH_ENGINE_ID;
+  const apiKey = process.env.GOOGLE_API_KEY?.trim();
+  const searchEngineId = process.env.GOOGLE_SEARCH_ENGINE_ID?.trim();
 
-  if (!apiKey || !searchEngineId) {
-    logger.warn("Google API credentials not configured, skipping scraper");
+  if (!apiKey || !searchEngineId || searchEngineId === 'your_search_engine_id') {
+    logger.warn("Google API credentials not configured properly, skipping scraper");
     return [];
   }
 
