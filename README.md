@@ -13,7 +13,7 @@
 **This app solves that by:**
 - 🤖 Automatically scraping events every Friday (no manual work!)
 - 📧 Emailing you when new events are found
-- 🎯 Aggregating from multiple sources (Ticketmaster, Eventbrite, Google)
+- 🎯 Aggregating from multiple sources (Ticketmaster, Eventbrite, SeatGeek, Google)
 - 🗓️ Focusing on weekend events (when you're actually free)
 - 🔄 De-duplicating so you don't see the same event twice
 
@@ -21,7 +21,7 @@
 
 ### Core Functionality
 - 🤖 **Automated Scraping** - Runs every Friday at 9 AM to fetch weekend events
-- 🎯 **Multiple Sources** - Aggregates from Ticketmaster, Eventbrite, and Google Custom Search
+- 🎯 **Multiple Sources** - Aggregates from Ticketmaster, Eventbrite, SeatGeek, and Google Custom Search
 - 🔄 **Smart Deduplication** - Prevents duplicate events using unique hash keys
 - 📧 **Email Notifications** - Get notified when new events are discovered
 - 🗓️ **Weekend Focus** - Automatically filters and displays upcoming weekend events
@@ -55,6 +55,7 @@
 ### APIs & Integrations
 - Ticketmaster Discovery API
 - Eventbrite API v3
+- SeatGeek Events API
 - Google Custom Search JSON API
 
 ## Quick Start
@@ -93,6 +94,7 @@ DATABASE_URL=postgresql://user:pass@host:5432/dbname
 # API Keys (required)
 TICKETMASTER_API_KEY=your_ticketmaster_key
 EVENTBRITE_API_KEY=your_eventbrite_key
+SEATGEEK_CLIENT_ID=your_seatgeek_client_id
 GOOGLE_API_KEY=your_google_api_key
 GOOGLE_SEARCH_ENGINE_ID=your_search_engine_id
 
@@ -153,6 +155,14 @@ Visit http://localhost:5000 to see your app!
 5. Copy your OAuth token
 6. Free tier: Generous limits for personal use
 
+#### SeatGeek API
+1. Visit [SeatGeek Platform](https://platform.seatgeek.com/)
+2. Sign up for a free account
+3. Go to "Manage Apps" → "Create New App"
+4. Give your app a name (e.g., "Houston Events Aggregator")
+5. Copy your **Client ID** (the public key)
+6. Free tier: 5,000 requests/day, no credit card required
+
 #### Google Custom Search API
 1. **Get API Key:**
    - Go to [Google Cloud Console](https://console.cloud.google.com/)
@@ -181,7 +191,7 @@ npm run scrape
 ```
 
 This will:
-1. Fetch events from all sources (Ticketmaster, Eventbrite, Google)
+1. Fetch events from all sources (Ticketmaster, Eventbrite, SeatGeek, Google)
 2. Deduplicate against existing events
 3. Save new events to database
 4. Display results summary
@@ -257,10 +267,11 @@ Returns scraping and event statistics.
 **Response:**
 ```json
 {
-  "totalEvents": 156,
+  "totalEvents": 212,
   "bySource": {
     "ticketmaster": 89,
     "eventbrite": 45,
+    "seatgeek": 56,
     "google": 22
   },
   "lastScraped": "2025-11-10T09:00:00Z"
@@ -350,6 +361,7 @@ CMD ["npm", "start"]
 - ✅ `DATABASE_URL` - PostgreSQL connection string
 - ✅ `TICKETMASTER_API_KEY`
 - ✅ `EVENTBRITE_API_KEY`
+- ✅ `SEATGEEK_CLIENT_ID`
 - ✅ `GOOGLE_API_KEY`
 - ✅ `GOOGLE_SEARCH_ENGINE_ID`
 
@@ -370,6 +382,7 @@ houston-events-aggregator/
 │   │   ├── scrapers/
 │   │   │   ├── ticketmaster.ts    # Ticketmaster scraper
 │   │   │   ├── eventbrite.ts      # Eventbrite scraper
+│   │   │   ├── seatgeek.ts        # SeatGeek scraper
 │   │   │   ├── google.ts          # Google search scraper
 │   │   │   └── index.ts           # Scraper orchestrator
 │   │   ├── utils/
@@ -491,6 +504,7 @@ import { scrapeNewSource } from "./newsource";
 const results = await Promise.all([
   scrapeTicketmaster(),
   scrapeEventbrite(),
+  scrapeSeatGeek(),
   scrapeGoogle(),
   scrapeNewSource(), // Add here
 ]);
@@ -630,6 +644,11 @@ npm test                 # Run tests
 **Eventbrite:**
 - Generous limits for personal use
 - ~1,000 requests/hour typical
+
+**SeatGeek:**
+- 5,000 requests/day (free tier)
+- No credit card required
+- Rate limit: ~10 requests/second
 
 **Google Custom Search:**
 - 100 queries/day (free tier)
