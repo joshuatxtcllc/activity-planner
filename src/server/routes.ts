@@ -86,6 +86,39 @@ router.post("/scrape", async (_req, res) => {
 });
 
 /**
+ * GET /api/debug/env
+ * Debug endpoint to check which API keys are configured
+ */
+router.get("/debug/env", async (_req, res) => {
+  try {
+    const envStatus = {
+      TICKETMASTER_API_KEY: !!process.env.TICKETMASTER_API_KEY,
+      TICKETMASTER_LENGTH: process.env.TICKETMASTER_API_KEY?.length || 0,
+      TICKETMASTER_FIRST_4: process.env.TICKETMASTER_API_KEY?.substring(0, 4) || 'NOT SET',
+      EVENTBRITE_API_KEY: !!process.env.EVENTBRITE_API_KEY,
+      EVENTBRITE_LENGTH: process.env.EVENTBRITE_API_KEY?.length || 0,
+      EVENTBRITE_FIRST_4: process.env.EVENTBRITE_API_KEY?.substring(0, 4) || 'NOT SET',
+      SEATGEEK_API_KEY: !!process.env.SEATGEEK_API_KEY,
+      SEATGEEK_LENGTH: process.env.SEATGEEK_API_KEY?.length || 0,
+      SEATGEEK_FIRST_4: process.env.SEATGEEK_API_KEY?.substring(0, 4) || 'NOT SET',
+      GOOGLE_API_KEY: !!process.env.GOOGLE_API_KEY,
+      GOOGLE_LENGTH: process.env.GOOGLE_API_KEY?.length || 0,
+      GOOGLE_SEARCH_ENGINE_ID: !!process.env.GOOGLE_SEARCH_ENGINE_ID,
+      DATABASE_URL: !!process.env.DATABASE_URL,
+      NODE_ENV: process.env.NODE_ENV,
+      ALL_ENV_KEYS: Object.keys(process.env).filter(k =>
+        k.includes('API') || k.includes('TICKET') || k.includes('EVENT') || k.includes('SEAT')
+      ).sort(),
+    };
+
+    res.json(envStatus);
+  } catch (error) {
+    logger.error("Failed to fetch env debug info", { error });
+    res.status(500).json({ error: "Failed to fetch env debug info" });
+  }
+});
+
+/**
  * GET /api/stats
  * Get statistics about events
  */
