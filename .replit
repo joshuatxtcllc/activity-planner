@@ -1,18 +1,34 @@
-modules = ["nodejs-20", "web", "postgresql-16"]
+modules = ["nodejs-20", "web"]
 run = "npm run dev"
 hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
-channel = "stable-24_05"
+channel = "stable-25_05"
 
 [deployment]
 deploymentTarget = "autoscale"
-build = ["sh", "-c", "npm run build && npm run db:migrate"]
-run = ["sh", "-c", "NODE_ENV=production node dist/index.js"]
+build = ["npm", "run", "build"]
+run = ["npm", "run", "start"]
+
+[[ports]]
+localPort = 3001
+externalPort = 3000
 
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 5173
+externalPort = 5173
+
+[[ports]]
+localPort = 24678
+externalPort = 3001
+
+[[ports]]
+localPort = 40279
+externalPort = 3002
 
 [workflows]
 runButton = "Project"
@@ -34,9 +50,9 @@ author = "agent"
 agentRequireRestartOnSave = false
 
 [[workflows.workflow.tasks]]
-task = "packager.installForAll"
-
-[[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
+
+[agent]
+expertMode = true

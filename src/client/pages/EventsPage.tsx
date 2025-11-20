@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import EventCard from "../components/EventCard";
 import type { Event } from "../../shared/schema";
 
@@ -9,9 +9,26 @@ async function fetchWeekendEvents(): Promise<Event[]> {
 }
 
 export default function EventsPage() {
+  const queryClient = useQueryClient();
+  
   const { data: events, isLoading, error } = useQuery({
     queryKey: ["weekend-events"],
     queryFn: fetchWeekendEvents,
+  });
+
+  const scrapeMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/scrape", { method: "POST" });
+      if (!response.ok) throw new Error("Scrape failed");
+      return response.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["weekend-events"] });
+      alert(`Events Updated! Found ${data.total} events: ${data.new} new, ${data.duplicates} duplicates`);
+    },
+    onError: () => {
+      alert("Failed to refresh events. Please try again.");
+    },
   });
 
   if (isLoading) {
@@ -38,13 +55,35 @@ export default function EventsPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-gray-900">
-          This Weekend in Houston
-        </h2>
-        <p className="mt-2 text-gray-600">
-          {events?.length || 0} events happening this weekend
-        </p>
+      <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="text-3xl font-bold text-gray-900">
+            This Weekend in Houston
+          </h2>
+          <p className="mt-2 text-gray-600">
+            {events?.length || 0} events happening this weekend
+          </p>
+        </div>
+        <button
+          onClick={() => scrapeMutation.mutate()}
+          disabled={scrapeMutation.isPending}
+          data-testid="button-refresh-events"
+          className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+        >
+          {scrapeMutation.isPending ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              Updating...
+            </>
+          ) : (
+            <>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Refresh Events
+            </>
+          )}
+        </button>
       </div>
 
       {Object.keys(groupedByDate).length === 0 ? (

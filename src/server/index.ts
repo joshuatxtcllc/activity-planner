@@ -10,7 +10,6 @@ import { startScheduler } from "./scheduler";
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Security middleware
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -22,7 +21,6 @@ app.use(helmet({
   },
 }));
 
-// CORS
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN || "*",
@@ -30,33 +28,27 @@ app.use(
   })
 );
 
-// Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per window
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   message: "Too many requests from this IP, please try again later.",
 });
 app.use("/api", limiter);
 
-// Body parsing
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Request logging
 app.use((req, _res, next) => {
   logger.info(`${req.method} ${req.path}`);
   next();
 });
 
-// API routes
 app.use("/api", routes);
 
-// Health check
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// Serve static files in production
 if (process.env.NODE_ENV === "production") {
   app.use(express.static("dist/public"));
   app.get("*", (_req, res) => {
@@ -64,7 +56,6 @@ if (process.env.NODE_ENV === "production") {
   });
 }
 
-// Error handler
 app.use(
   (
     err: Error,
@@ -82,12 +73,10 @@ app.use(
   }
 );
 
-// Start server
 app.listen(PORT, () => {
   logger.info(`🚀 Server running on port ${PORT}`);
   logger.info(`Environment: ${process.env.NODE_ENV || "development"}`);
 
-  // Start scheduler in production or if explicitly enabled
   if (process.env.NODE_ENV === "production" || process.env.ENABLE_SCHEDULER === "true") {
     startScheduler();
   } else {
