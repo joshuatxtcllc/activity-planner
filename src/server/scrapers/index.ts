@@ -5,6 +5,7 @@ import logger from "../utils/logger";
 import { scrapeTicketmaster } from "./ticketmaster";
 import { scrapeEventbrite } from "./eventbrite";
 import { scrapeGoogle } from "./google";
+import { scrapeSeatgeek } from "./seatgeek";
 import { eq } from "drizzle-orm";
 
 /**
@@ -20,11 +21,12 @@ export async function runAllScrapers(): Promise<{
 
   try {
     // Run all scrapers in parallel
-    const [ticketmasterEvents, eventbriteEvents, googleEvents] =
+    const [ticketmasterEvents, eventbriteEvents, googleEvents, seatgeekEvents] =
       await Promise.all([
         scrapeTicketmaster(),
         scrapeEventbrite(),
         scrapeGoogle(),
+        scrapeSeatgeek(),
       ]);
 
     // Combine all events
@@ -32,6 +34,7 @@ export async function runAllScrapers(): Promise<{
       ...ticketmasterEvents,
       ...eventbriteEvents,
       ...googleEvents,
+      ...seatgeekEvents,
     ];
 
     logger.info(`Total events scraped: ${allEvents.length}`);
