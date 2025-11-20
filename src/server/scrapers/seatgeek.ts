@@ -52,10 +52,11 @@ export async function scrapeSeatgeek(): Promise<NewEvent[]> {
     const friday = getNextFriday(today);
     const sunday = new Date(friday);
     sunday.setDate(sunday.getDate() + 2);
+    sunday.setHours(23, 59, 59);
 
-    // Format dates for Seatgeek API (YYYY-MM-DD)
-    const startDate = friday.toISOString().split('T')[0];
-    const endDate = sunday.toISOString().split('T')[0];
+    // Format dates for Seatgeek API (ISO format with time)
+    const startDate = friday.toISOString();
+    const endDate = sunday.toISOString();
 
     // Houston coordinates
     const response = await axios.get(
@@ -66,8 +67,8 @@ export async function scrapeSeatgeek(): Promise<NewEvent[]> {
           lat: "29.7604",
           lon: "-95.3698",
           range: "25mi",
-          "datetime_local.gte": startDate,
-          "datetime_local.lte": endDate,
+          "datetime_utc.gte": startDate,
+          "datetime_utc.lte": endDate,
           per_page: 100,
         },
       }
@@ -84,7 +85,8 @@ export async function scrapeSeatgeek(): Promise<NewEvent[]> {
           ? `${event.venue.city}, ${event.venue.state}`
           : "Houston, TX";
 
-        const startDate = new Date(event.datetime_local);
+        // Use datetime_local for display purposes (local to the event)
+        const startDate = new Date(event.datetime_local || event.datetime_utc);
 
         // Seatgeek prices are in dollars, convert to cents
         const lowestPrice = event.stats?.lowest_price;
