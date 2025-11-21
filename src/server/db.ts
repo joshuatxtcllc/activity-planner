@@ -7,11 +7,8 @@ if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL environment variable is required");
 }
 
-// Create postgres connection
-const connectionString = process.env.DATABASE_URL;
-const client = postgres(connectionString, { max: 10 });
-
-export const db = drizzle(client, { schema });
+const sql = neon(process.env.DATABASE_URL);
+export const db = drizzle(sql, { schema });
 
 // Run migrations immediately on import
 const MIGRATION_SQL = `
@@ -48,7 +45,7 @@ CREATE INDEX IF NOT EXISTS "idx_events_unique_key" ON "events" ("unique_key");
 (async () => {
   try {
     logger.info("Initializing database schema...");
-    await client.unsafe(MIGRATION_SQL);
+    await sql(MIGRATION_SQL);
     logger.info("✅ Database schema initialized successfully");
   } catch (error) {
     logger.error("Failed to initialize database schema", {
