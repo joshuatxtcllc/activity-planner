@@ -3,9 +3,14 @@ import express from "express";
 import helmet from "helmet";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 import logger from "./utils/logger";
 import routes from "./routes";
 import { startScheduler } from "./scheduler";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -50,9 +55,11 @@ app.get("/health", (_req, res) => {
 });
 
 if (process.env.NODE_ENV === "production") {
-  app.use(express.static("dist/public"));
+  const publicPath = join(__dirname, "public");
+  logger.info(`Serving static files from: ${publicPath}`);
+  app.use(express.static(publicPath));
   app.get("*", (_req, res) => {
-    res.sendFile("index.html", { root: "dist/public" });
+    res.sendFile("index.html", { root: publicPath });
   });
 }
 
