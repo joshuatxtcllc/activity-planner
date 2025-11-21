@@ -6,7 +6,6 @@ import rateLimit from "express-rate-limit";
 import logger from "./utils/logger";
 import routes from "./routes";
 import { startScheduler } from "./scheduler";
-import { runMigrations } from "./migrate";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -74,16 +73,9 @@ app.use(
   }
 );
 
-app.listen(PORT, async () => {
+app.listen(PORT, () => {
   logger.info(`🚀 Server running on port ${PORT}`);
   logger.info(`Environment: ${process.env.NODE_ENV || "development"}`);
-
-  // Run migrations on startup
-  try {
-    await runMigrations();
-  } catch (error) {
-    logger.error("Failed to run migrations on startup", { error });
-  }
 
   if (process.env.NODE_ENV === "production" || process.env.ENABLE_SCHEDULER === "true") {
     startScheduler();
