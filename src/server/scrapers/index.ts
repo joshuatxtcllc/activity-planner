@@ -61,7 +61,12 @@ export async function runAllScrapers(): Promise<{
           logger.debug(`New event saved: ${event.title}`);
         }
       } catch (error) {
-        logger.error("Failed to save event", { error, event: event.title });
+        logger.error("Failed to save event", {
+          error: error instanceof Error ? error.message : String(error),
+          errorDetails: error,
+          event: event.title,
+          eventData: event,
+        });
       }
     }
 
