@@ -3,9 +3,15 @@ import express from "express";
 import helmet from "helmet";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
+import { existsSync, readdirSync } from "fs";
 import logger from "./utils/logger";
 import routes from "./routes";
 import { startScheduler } from "./scheduler";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -50,9 +56,41 @@ app.get("/health", (_req, res) => {
 });
 
 if (process.env.NODE_ENV === "production") {
-  app.use(express.static("dist/public"));
-  app.get("*", (_req, res) => {
-    res.sendFile("index.html", { root: "dist/public" });
+  const publicPath = join(__dirname, "public");
+  logger.info(`Static files directory: ${publicPath}`);
+
+  // Check if public directory exists and log contents
+  if (!existsSync(publicPath)) {
+    logger.error(`❌ Public directory does not exist at: ${publicPath}`);
+  } else {
+    logger.info(`✅ Public directory exists`);
+    try {
+      const files = readdirSync(publicPath);
+      logger.info(`Files in public: ${files.join(", ")}`);
+    } catch (err) {
+      logger.error(`Error reading public directory: ${err}`);
+    }
+  }
+
+  // Serve static files with logging
+  app.use(express.static(publicPath, {
+    maxAge: "1d",
+    setHeaders: (res, filePath) => {
+      logger.info(`Serving: ${filePath}`);
+    }
+  }));
+
+  // SPA fallback - serve index.html for all other routes
+  app.get("*", (req, res) => {
+    const indexPath = join(publicPath, "index.html");
+    logger.info(`Fallback route for ${req.path} -> ${indexPath}`);
+
+    if (!existsSync(indexPath)) {
+      logger.error(`❌ index.html not found at: ${indexPath}`);
+      return res.status(404).send("Application not found. Build may have failed.");
+    }
+
+    res.sendFile(indexPath);
   });
 }
 
