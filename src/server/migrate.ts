@@ -1,4 +1,4 @@
-import { neon } from "@neondatabase/serverless";
+import postgres from "postgres";
 import logger from "./utils/logger";
 
 const MIGRATION_SQL = `
@@ -43,15 +43,18 @@ export async function runMigrations() {
     throw new Error("DATABASE_URL environment variable is required");
   }
 
-  const sql = neon(process.env.DATABASE_URL);
+  const sql = postgres(process.env.DATABASE_URL, { max: 1 });
 
   try {
     logger.info("Running database migrations...");
 
     // Execute migration
-    await sql(MIGRATION_SQL);
+    await sql.unsafe(MIGRATION_SQL);
 
     logger.info("✅ Database migrations completed successfully");
+
+    // Close connection
+    await sql.end();
   } catch (error) {
     logger.error("Failed to run migrations", { error });
     throw error;
