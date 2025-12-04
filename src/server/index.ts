@@ -75,7 +75,7 @@ if (process.env.NODE_ENV === "production") {
   // Serve static files with logging
   app.use(express.static(publicPath, {
     maxAge: "1d",
-    setHeaders: (res, filePath) => {
+    setHeaders: (_res, filePath) => {
       logger.info(`Serving: ${filePath}`);
     }
   }));

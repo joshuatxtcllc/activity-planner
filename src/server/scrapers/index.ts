@@ -6,6 +6,9 @@ import { scrapeTicketmaster } from "./ticketmaster";
 import { scrapeEventbrite } from "./eventbrite";
 import { scrapeGoogle } from "./google";
 import { scrapeSeatgeek } from "./seatgeek";
+import { scrapeDo713 } from "./do713";
+import { scrapeHoustonPress } from "./houstonpress";
+import { scrapeSpaceCityRock } from "./spacecityrock";
 import { eq } from "drizzle-orm";
 
 /**
@@ -21,13 +24,23 @@ export async function runAllScrapers(): Promise<{
 
   try {
     // Run all scrapers in parallel
-    const [ticketmasterEvents, eventbriteEvents, googleEvents, seatgeekEvents] =
-      await Promise.all([
-        scrapeTicketmaster(),
-        scrapeEventbrite(),
-        scrapeGoogle(),
-        scrapeSeatgeek(),
-      ]);
+    const [
+      ticketmasterEvents,
+      eventbriteEvents,
+      googleEvents,
+      seatgeekEvents,
+      do713Events,
+      houstonPressEvents,
+      spaceCityRockEvents,
+    ] = await Promise.all([
+      scrapeTicketmaster(),
+      scrapeEventbrite(),
+      scrapeGoogle(),
+      scrapeSeatgeek(),
+      scrapeDo713(),
+      scrapeHoustonPress(),
+      scrapeSpaceCityRock(),
+    ]);
 
     // Combine all events
     const allEvents = [
@@ -35,6 +48,9 @@ export async function runAllScrapers(): Promise<{
       ...eventbriteEvents,
       ...googleEvents,
       ...seatgeekEvents,
+      ...do713Events,
+      ...houstonPressEvents,
+      ...spaceCityRockEvents,
     ];
 
     logger.info(`Total events scraped: ${allEvents.length}`);
