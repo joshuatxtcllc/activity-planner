@@ -33,11 +33,16 @@ interface EventbriteEvent {
 }
 
 export async function scrapeEventbrite(): Promise<NewEvent[]> {
-  const apiKey = process.env.EVENTBRITE_API_KEY?.trim();
+  // Clean API key (remove whitespace and quotes)
+  const apiKey = process.env.EVENTBRITE_API_KEY?.trim().replace(/^['"]|['"]$/g, '');
   if (!apiKey) {
     logger.warn("Eventbrite API key not configured, skipping scraper");
     return [];
   }
+
+  // NOTE: The public Event Search API was deprecated in 2020 and is no longer available
+  // This scraper may not work without a whitelisted API key
+  logger.warn("Eventbrite public search API was deprecated in 2020 - this scraper may fail");
 
   try {
     logger.info("Starting Eventbrite scraper for Houston events");

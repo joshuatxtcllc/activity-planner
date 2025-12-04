@@ -34,7 +34,8 @@ interface TicketmasterEvent {
 }
 
 export async function scrapeTicketmaster(): Promise<NewEvent[]> {
-  const apiKey = process.env.TICKETMASTER_API_KEY?.trim();
+  // Clean API key (remove whitespace and quotes)
+  const apiKey = process.env.TICKETMASTER_API_KEY?.trim().replace(/^['"]|['"]$/g, '');
   if (!apiKey) {
     logger.warn("Ticketmaster API key not configured, skipping scraper");
     return [];

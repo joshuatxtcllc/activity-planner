@@ -15,7 +15,8 @@ export async function scrapeHoustonPress(): Promise<NewEvent[]> {
     const events: NewEvent[] = [];
 
     // Get events from Houston Press calendar
-    const response = await axios.get("https://www.houstonpress.com/events", {
+    // Note: Houston Press moved their events calendar to a subdomain
+    const response = await axios.get("https://community.houstonpress.com/houston/EventSearch", {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
       },

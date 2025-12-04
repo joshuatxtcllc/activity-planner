@@ -14,8 +14,14 @@ export async function scrapeDo713(): Promise<NewEvent[]> {
 
     const events: NewEvent[] = [];
 
-    // Get upcoming events from Do713
-    const response = await axios.get("https://www.do713.com/events/week", {
+    // Get this Friday's events from Do713
+    // Note: Do713 now uses date-specific URLs: /events/YYYY/MM/DD
+    const friday = getNextFriday(new Date());
+    const year = friday.getFullYear();
+    const month = friday.getMonth() + 1;
+    const day = friday.getDate();
+
+    const response = await axios.get(`https://do713.com/events/${year}/${month}/${day}`, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
       },
@@ -195,4 +201,16 @@ function mapCategory(categoryText: string): string | undefined {
   if (lower.includes("family") || lower.includes("kids")) return "family";
 
   return undefined;
+}
+
+/**
+ * Get the next Friday from a given date
+ */
+function getNextFriday(from: Date): Date {
+  const result = new Date(from);
+  const dayOfWeek = result.getDay();
+  const daysUntilFriday = dayOfWeek <= 5 ? 5 - dayOfWeek : 7 - dayOfWeek + 5;
+  result.setDate(result.getDate() + daysUntilFriday);
+  result.setHours(0, 0, 0, 0);
+  return result;
 }
