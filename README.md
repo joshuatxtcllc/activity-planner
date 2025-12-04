@@ -1,6 +1,6 @@
 # Houston Events Aggregator
 
-**Never miss another Houston event!** This app automatically scrapes weekend events from Ticketmaster, Eventbrite, and Google Search every Friday morning, delivering them in a clean interface so you always know what's happening in Houston.
+**Never miss another Houston event!** This app automatically scrapes weekend events from multiple sources including Ticketmaster, Eventbrite, SeatGeek, Google Search, Do713, Houston Press, and Space City Rock every Friday morning, delivering them in a clean interface so you always know what's happening in Houston.
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Node Version](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen)
@@ -21,7 +21,9 @@
 
 ### Core Functionality
 - 🤖 **Automated Scraping** - Runs every Friday at 9 AM to fetch weekend events
-- 🎯 **Multiple Sources** - Aggregates from Ticketmaster, Eventbrite, SeatGeek, and Google Custom Search
+- 🎯 **Multiple Sources** - Aggregates from:
+  - **APIs**: Ticketmaster, Eventbrite, SeatGeek, Google Custom Search
+  - **Web Scraping**: Do713 (Houston's #1 events site), Houston Press, Space City Rock (local music)
 - 🔄 **Smart Deduplication** - Prevents duplicate events using unique hash keys
 - 📧 **Email Notifications** - Get notified when new events are discovered
 - 🗓️ **Weekend Focus** - Automatically filters and displays upcoming weekend events
@@ -53,10 +55,16 @@
 - **Routing:** Wouter (lightweight routing)
 
 ### APIs & Integrations
+**API-Based:**
 - Ticketmaster Discovery API
 - Eventbrite API v3
 - SeatGeek Events API
 - Google Custom Search JSON API
+
+**Web Scraping (using Cheerio):**
+- Do713.com - Houston's premier local events website
+- Houston Press Events - Local news and entertainment
+- Space City Rock - Houston's indie/local music scene
 
 ## Quick Start
 
@@ -191,7 +199,9 @@ npm run scrape
 ```
 
 This will:
-1. Fetch events from all sources (Ticketmaster, Eventbrite, SeatGeek, Google)
+1. Fetch events from all sources:
+   - **APIs**: Ticketmaster, Eventbrite, SeatGeek, Google Custom Search
+   - **Web Scraping**: Do713, Houston Press, Space City Rock
 2. Deduplicate against existing events
 3. Save new events to database
 4. Display results summary
@@ -380,10 +390,13 @@ houston-events-aggregator/
 ├── src/
 │   ├── server/                    # Backend code
 │   │   ├── scrapers/
-│   │   │   ├── ticketmaster.ts    # Ticketmaster scraper
-│   │   │   ├── eventbrite.ts      # Eventbrite scraper
-│   │   │   ├── seatgeek.ts        # SeatGeek scraper
-│   │   │   ├── google.ts          # Google search scraper
+│   │   │   ├── ticketmaster.ts    # Ticketmaster API scraper
+│   │   │   ├── eventbrite.ts      # Eventbrite API scraper
+│   │   │   ├── seatgeek.ts        # SeatGeek API scraper
+│   │   │   ├── google.ts          # Google Custom Search API scraper
+│   │   │   ├── do713.ts           # Do713 web scraper
+│   │   │   ├── houstonpress.ts    # Houston Press web scraper
+│   │   │   ├── spacecityrock.ts   # Space City Rock web scraper
 │   │   │   └── index.ts           # Scraper orchestrator
 │   │   ├── utils/
 │   │   │   ├── logger.ts          # Winston logger config
@@ -506,6 +519,9 @@ const results = await Promise.all([
   scrapeEventbrite(),
   scrapeSeatGeek(),
   scrapeGoogle(),
+  scrapeDo713(),
+  scrapeHoustonPress(),
+  scrapeSpaceCityRock(),
   scrapeNewSource(), // Add here
 ]);
 ```
