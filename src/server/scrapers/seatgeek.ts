@@ -38,7 +38,8 @@ interface SeatgeekEvent {
 }
 
 export async function scrapeSeatgeek(): Promise<NewEvent[]> {
-  const clientId = process.env.SEATGEEK_API_KEY?.trim();
+  // Clean API key (remove whitespace and quotes)
+  const clientId = process.env.SEATGEEK_API_KEY?.trim().replace(/^['"]|['"]$/g, '');
   if (!clientId) {
     logger.warn("Seatgeek API key not configured, skipping scraper");
     return [];
