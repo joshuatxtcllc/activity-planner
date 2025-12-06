@@ -45,6 +45,22 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+// Diagnostic endpoint - simple HTML page to verify server is working
+app.get("/test", (_req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+      <head><title>Test Page</title></head>
+      <body style="font-family: system-ui; padding: 20px;">
+        <h1>✅ Server is Working!</h1>
+        <p>Environment: ${process.env.NODE_ENV}</p>
+        <p>Time: ${new Date().toISOString()}</p>
+        <p>Port: ${PORT}</p>
+      </body>
+    </html>
+  `);
+});
+
 if (process.env.NODE_ENV === "production") {
   const publicPath = join(__dirname, "public");
   logger.info(`Static files directory: ${publicPath}`);
