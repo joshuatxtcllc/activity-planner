@@ -15,7 +15,7 @@ export async function scrapeSpaceCityRock(): Promise<NewEvent[]> {
     const events: NewEvent[] = [];
 
     // Get events from Space City Rock shows calendar
-    const response = await axios.get("https://www.spacecityrock.com/shows-0", {
+    const response = await axios.get("https://www.spacecityrock.com/shows-2/", {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
       },

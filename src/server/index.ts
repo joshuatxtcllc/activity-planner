@@ -16,16 +16,14 @@ const __dirname = dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Disable helmet in production to avoid security header conflicts with Vite SPA
-if (process.env.NODE_ENV !== "production") {
-  app.use(helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-        imgSrc: ["'self'", "data:", "https:"],
-      },
+app.use(helmet({
+  contentSecurityPolicy: process.env.NODE_ENV === "production" ? false : {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'"],
     },
   }));
 }
