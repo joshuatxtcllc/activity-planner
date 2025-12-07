@@ -13,7 +13,7 @@ const client = postgres(connectionString, { max: 10 });
 
 export const db = drizzle(client, { schema });
 
-// Run migrations immediately on import
+// SQL for database migrations
 const MIGRATION_SQL = `
 -- Create events table
 CREATE TABLE IF NOT EXISTS "events" (
@@ -44,8 +44,10 @@ CREATE INDEX IF NOT EXISTS "idx_events_source" ON "events" ("source");
 CREATE INDEX IF NOT EXISTS "idx_events_unique_key" ON "events" ("unique_key");
 `;
 
-// Initialize database on module load
-(async () => {
+/**
+ * Initialize database schema - must be called before starting the server
+ */
+export async function initializeDatabase(): Promise<void> {
   try {
     logger.info("Initializing database schema...");
     await client.unsafe(MIGRATION_SQL);
@@ -55,5 +57,6 @@ CREATE INDEX IF NOT EXISTS "idx_events_unique_key" ON "events" ("unique_key");
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined
     });
+    throw error; // Re-throw to prevent server from starting with broken DB
   }
-})();
+}
