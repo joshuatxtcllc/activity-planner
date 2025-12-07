@@ -8,6 +8,27 @@ import { existsSync, readdirSync } from "fs";
 import logger from "./utils/logger";
 import routes from "./routes";
 import { startScheduler } from "./scheduler";
+import { initializeDatabase } from "./db";
+
+// Handle unhandled promise rejections
+process.on("unhandledRejection", (reason, promise) => {
+  logger.error("Unhandled Promise Rejection", {
+    reason: reason instanceof Error ? reason.message : String(reason),
+    stack: reason instanceof Error ? reason.stack : undefined,
+  });
+  // Exit process to trigger Railway restart
+  process.exit(1);
+});
+
+// Handle uncaught exceptions
+process.on("uncaughtException", (error) => {
+  logger.error("Uncaught Exception", {
+    error: error.message,
+    stack: error.stack,
+  });
+  // Exit process to trigger Railway restart
+  process.exit(1);
+});
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -122,15 +143,33 @@ app.use(
   }
 );
 
-app.listen(PORT, "0.0.0.0", () => {
-  logger.info(`🚀 Server running on port ${PORT}`);
-  logger.info(`Environment: ${process.env.NODE_ENV || "development"}`);
+// Async startup function to ensure database is ready before accepting requests
+async function startServer() {
+  try {
+    // Initialize database schema first
+    await initializeDatabase();
 
-  if (process.env.NODE_ENV === "production" || process.env.ENABLE_SCHEDULER === "true") {
-    startScheduler();
-  } else {
-    logger.info("Scheduler disabled in development (set ENABLE_SCHEDULER=true to enable)");
+    // Only start listening after database is ready
+    app.listen(PORT, "0.0.0.0", () => {
+      logger.info(`🚀 Server running on port ${PORT}`);
+      logger.info(`Environment: ${process.env.NODE_ENV || "development"}`);
+
+      if (process.env.NODE_ENV === "production" || process.env.ENABLE_SCHEDULER === "true") {
+        startScheduler();
+      } else {
+        logger.info("Scheduler disabled in development (set ENABLE_SCHEDULER=true to enable)");
+      }
+    });
+  } catch (error) {
+    logger.error("Failed to start server", {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    process.exit(1);
   }
-});
+}
+
+// Start the server
+startServer();
 
 export default app;
