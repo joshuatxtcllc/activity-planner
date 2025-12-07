@@ -78,25 +78,30 @@ if (process.env.NODE_ENV === "production") {
     }
   }
 
-  // Serve static files with logging
-  app.use(express.static(publicPath, {
-    maxAge: "1d",
-    setHeaders: (_res, filePath) => {
-      logger.info(`Serving: ${filePath}`);
-    }
-  }));
+  // Serve static files (simplified - removed logging callback)
+  app.use(express.static(publicPath, { maxAge: "1d" }));
 
   // SPA fallback - serve index.html for all other routes
-  app.get("*", (req, res) => {
-    const indexPath = join(publicPath, "index.html");
-    logger.info(`Fallback route for ${req.path} -> ${indexPath}`);
+  app.get("*", (req, res, next) => {
+    try {
+      const indexPath = join(publicPath, "index.html");
+      logger.info(`Fallback route for ${req.path} -> ${indexPath}`);
 
-    if (!existsSync(indexPath)) {
-      logger.error(`❌ index.html not found at: ${indexPath}`);
-      return res.status(404).send("Application not found. Build may have failed.");
+      if (!existsSync(indexPath)) {
+        logger.error(`❌ index.html not found at: ${indexPath}`);
+        return res.status(404).send("Application not found. Build may have failed.");
+      }
+
+      res.sendFile(indexPath, (err) => {
+        if (err) {
+          logger.error(`Error sending index.html: ${err.message}`);
+          next(err);
+        }
+      });
+    } catch (error) {
+      logger.error(`Error in SPA fallback: ${error}`);
+      next(error);
     }
-
-    res.sendFile(indexPath);
   });
 }
 
