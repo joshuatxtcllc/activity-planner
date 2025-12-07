@@ -63,7 +63,11 @@ app.use((req, _res, next) => {
 app.use("/api", routes);
 
 app.get("/health", (_req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+  res.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    version: "2.0-async-init" // Version identifier to confirm deployment
+  });
 });
 
 // Diagnostic endpoint - simple HTML page to verify server is working
