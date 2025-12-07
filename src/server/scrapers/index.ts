@@ -99,18 +99,7 @@ export async function runAllScrapers(): Promise<{
   }
 }
 
-// Allow running directly
-if (import.meta.url === `file://${process.argv[1]}`) {
-  runAllScrapers()
-    .then((result) => {
-      console.log("\n📊 Scraping Results:");
-      console.log(`   Total scraped: ${result.total}`);
-      console.log(`   New events: ${result.new}`);
-      console.log(`   Duplicates: ${result.duplicates}`);
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error("Scraping failed:", error);
-      process.exit(1);
-    });
-}
+// Note: This module should only be executed via:
+// - The scheduler (cron job)
+// - The /api/scrape endpoint
+// - Running `npm run scrape` (which uses tsx directly on this file)
