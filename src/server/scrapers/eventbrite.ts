@@ -2,6 +2,7 @@ import axios from "axios";
 import logger from "../utils/logger";
 import type { NewEvent } from "../../shared/schema";
 import { generateEventHash } from "../utils/deduplication";
+import { getNextFriday } from "../utils/date-utils";
 
 interface EventbriteEvent {
   id: string;
@@ -121,11 +122,3 @@ export async function scrapeEventbrite(): Promise<NewEvent[]> {
   }
 }
 
-function getNextFriday(from: Date): Date {
-  const result = new Date(from);
-  const dayOfWeek = result.getDay();
-  const daysUntilFriday = dayOfWeek <= 5 ? 5 - dayOfWeek : 7 - dayOfWeek + 5;
-  result.setDate(result.getDate() + daysUntilFriday);
-  result.setHours(0, 0, 0, 0);
-  return result;
-}
