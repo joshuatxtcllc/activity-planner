@@ -1,17 +1,39 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "../shared/schema";
 import logger from "./utils/logger";
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL environment variable is required");
+// Lazy initialization - only create connection when first accessed
+// This prevents build-time errors on Railway where env vars aren't available during build
+let client: ReturnType<typeof postgres> | null = null;
+let dbInstance: PostgresJsDatabase<typeof schema> | null = null;
+
+function getClient() {
+  if (!client) {
+    if (!process.env.DATABASE_URL) {
+      throw new Error("DATABASE_URL environment variable is required");
+    }
+    const connectionString = process.env.DATABASE_URL;
+    client = postgres(connectionString, { max: 10 });
+    logger.info("✅ PostgreSQL client initialized");
+  }
+  return client;
 }
 
-// Create postgres connection
-const connectionString = process.env.DATABASE_URL;
-const client = postgres(connectionString, { max: 10 });
+function getDb() {
+  if (!dbInstance) {
+    dbInstance = drizzle(getClient(), { schema });
+  }
+  return dbInstance;
+}
 
-export const db = drizzle(client, { schema });
+// Export db as a getter to ensure lazy initialization
+export const db = new Proxy({} as PostgresJsDatabase<typeof schema>, {
+  get(_, prop) {
+    return (getDb() as any)[prop];
+  }
+});
 
 // SQL for database migrations
 const MIGRATION_SQL = `
@@ -50,6 +72,7 @@ CREATE INDEX IF NOT EXISTS "idx_events_unique_key" ON "events" ("unique_key");
 export async function initializeDatabase(): Promise<void> {
   try {
     logger.info("Initializing database schema...");
+    const client = getClient(); // Ensure client is initialized
     await client.unsafe(MIGRATION_SQL);
     logger.info("✅ Database schema initialized successfully");
   } catch (error) {
