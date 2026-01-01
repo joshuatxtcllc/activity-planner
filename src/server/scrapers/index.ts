@@ -19,11 +19,12 @@ export async function runAllScrapers(): Promise<{
   total: number;
   new: number;
   duplicates: number;
+  bySource: Record<string, number>;
 }> {
   logger.info("🚀 Starting event scraping job");
 
   try {
-    // Run all scrapers in parallel
+    // Run all scrapers in parallel with individual error handling
     const [
       ticketmasterEvents,
       eventbriteEvents,
@@ -33,14 +34,46 @@ export async function runAllScrapers(): Promise<{
       houstonPressEvents,
       spaceCityRockEvents,
     ] = await Promise.all([
-      scrapeTicketmaster(),
-      scrapeEventbrite(),
-      scrapeGoogle(),
-      scrapeSeatgeek(),
-      scrapeDo713(),
-      scrapeHoustonPress(),
-      scrapeSpaceCityRock(),
+      scrapeTicketmaster().catch(err => {
+        logger.error("Ticketmaster scraper failed", { error: err });
+        return [];
+      }),
+      scrapeEventbrite().catch(err => {
+        logger.error("Eventbrite scraper failed", { error: err });
+        return [];
+      }),
+      scrapeGoogle().catch(err => {
+        logger.error("Google scraper failed", { error: err });
+        return [];
+      }),
+      scrapeSeatgeek().catch(err => {
+        logger.error("SeatGeek scraper failed", { error: err });
+        return [];
+      }),
+      scrapeDo713().catch(err => {
+        logger.error("Do713 scraper failed", { error: err });
+        return [];
+      }),
+      scrapeHoustonPress().catch(err => {
+        logger.error("HoustonPress scraper failed", { error: err });
+        return [];
+      }),
+      scrapeSpaceCityRock().catch(err => {
+        logger.error("SpaceCityRock scraper failed", { error: err });
+        return [];
+      }),
     ]);
+
+    // Log results per source
+    logger.info(`Results by source:
+      Ticketmaster: ${ticketmasterEvents.length}
+      Eventbrite: ${eventbriteEvents.length}
+      Google: ${googleEvents.length}
+      SeatGeek: ${seatgeekEvents.length}
+      Do713: ${do713Events.length}
+      HoustonPress: ${houstonPressEvents.length}
+      SpaceCityRock: ${spaceCityRockEvents.length}
+    `);
 
     // Combine all events
     const allEvents = [
@@ -88,10 +121,21 @@ export async function runAllScrapers(): Promise<{
 
     logger.info(`✅ Scraping complete: ${newCount} new, ${duplicateCount} duplicates`);
 
+    const bySource: Record<string, number> = {
+      ticketmaster: ticketmasterEvents.length,
+      eventbrite: eventbriteEvents.length,
+      google: googleEvents.length,
+      seatgeek: seatgeekEvents.length,
+      do713: do713Events.length,
+      houstonpress: houstonPressEvents.length,
+      spacecityrock: spaceCityRockEvents.length,
+    };
+
     return {
       total: allEvents.length,
       new: newCount,
       duplicates: duplicateCount,
+      bySource,
     };
   } catch (error) {
     logger.error("Scraping job failed", { error });
