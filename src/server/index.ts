@@ -16,8 +16,10 @@ process.on("unhandledRejection", (reason, promise) => {
     reason: reason instanceof Error ? reason.message : String(reason),
     stack: reason instanceof Error ? reason.stack : undefined,
   });
-  // Exit process to trigger Railway restart
-  process.exit(1);
+  // TEMPORARILY DISABLED: Don't crash the app, just log the error
+  // This helps debug what's actually failing on Railway
+  // TODO: Re-enable after fixing the root cause
+  // process.exit(1);
 });
 
 // Handle uncaught exceptions
@@ -26,8 +28,10 @@ process.on("uncaughtException", (error) => {
     error: error.message,
     stack: error.stack,
   });
-  // Exit process to trigger Railway restart
-  process.exit(1);
+  // TEMPORARILY DISABLED: Don't crash the app, just log the error
+  // This helps debug what's actually failing on Railway
+  // TODO: Re-enable after fixing the root cause
+  // process.exit(1);
 });
 
 const __filename = fileURLToPath(import.meta.url);
