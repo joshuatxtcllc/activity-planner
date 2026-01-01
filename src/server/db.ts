@@ -60,10 +60,46 @@ CREATE TABLE IF NOT EXISTS "events" (
   "unique_key" text UNIQUE
 );
 
--- Create indexes
+-- Create indexes for events
 CREATE INDEX IF NOT EXISTS "idx_events_start_date" ON "events" ("start_date");
 CREATE INDEX IF NOT EXISTS "idx_events_source" ON "events" ("source");
 CREATE INDEX IF NOT EXISTS "idx_events_unique_key" ON "events" ("unique_key");
+CREATE INDEX IF NOT EXISTS "idx_events_category" ON "events" ("category");
+
+-- Create user_preferences table for tracking likes/dislikes
+CREATE TABLE IF NOT EXISTS "user_preferences" (
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "session_id" text NOT NULL,
+  "event_id" uuid NOT NULL,
+  "liked" boolean,
+  "viewed" boolean DEFAULT false,
+  "clicked" boolean DEFAULT false,
+  "created_at" timestamp DEFAULT now() NOT NULL,
+  "updated_at" timestamp DEFAULT now() NOT NULL
+);
+
+-- Create indexes for user_preferences
+CREATE INDEX IF NOT EXISTS "idx_user_prefs_session" ON "user_preferences" ("session_id");
+CREATE INDEX IF NOT EXISTS "idx_user_prefs_event" ON "user_preferences" ("event_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_user_prefs_session_event" ON "user_preferences" ("session_id", "event_id");
+
+-- Create user_profiles table for ML recommendation patterns
+CREATE TABLE IF NOT EXISTS "user_profiles" (
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "session_id" text NOT NULL UNIQUE,
+  "preferred_categories" text[],
+  "preferred_sources" text[],
+  "preferred_price_range" text,
+  "preferred_days" text[],
+  "total_likes" integer DEFAULT 0,
+  "total_dislikes" integer DEFAULT 0,
+  "total_views" integer DEFAULT 0,
+  "created_at" timestamp DEFAULT now() NOT NULL,
+  "updated_at" timestamp DEFAULT now() NOT NULL
+);
+
+-- Create index for user_profiles
+CREATE INDEX IF NOT EXISTS "idx_user_profiles_session" ON "user_profiles" ("session_id");
 `;
 
 /**
