@@ -54,7 +54,7 @@ export async function generateItinerary(
     const response = await axios.post(
       "https://api.perplexity.ai/chat/completions",
       {
-        model: "llama-3.1-sonar-large-128k-online", // Online model for real-time search
+        model: "sonar", // Standard online model for real-time search
         messages: [
           {
             role: "system",

@@ -70,7 +70,7 @@ Provide ONLY the JSON array, no other text. Include at least 20-30 diverse event
     const response = await axios.post<PerplexityResponse>(
       "https://api.perplexity.ai/chat/completions",
       {
-        model: "llama-3.1-sonar-large-128k-online", // Online model for real-time search
+        model: "sonar", // Online model for real-time search
         messages: [
           {
             role: "system",
