@@ -54,3 +54,39 @@ export function getWeekendSunday(friday: Date): Date {
   sunday.setHours(23, 59, 59, 999);
   return sunday;
 }
+
+/**
+ * Get date range for upcoming weeks
+ *
+ * @param weeksAhead - Number of weeks to look ahead (default: 4)
+ * @returns Object with startDate (today or this Friday) and endDate
+ */
+export function getUpcomingWeeksRange(weeksAhead: number = 4): { startDate: Date; endDate: Date } {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const endDate = new Date(today);
+  endDate.setDate(endDate.getDate() + (weeksAhead * 7));
+  endDate.setHours(23, 59, 59, 999);
+
+  return { startDate: today, endDate };
+}
+
+/**
+ * Get array of Friday dates for the next N weeks
+ *
+ * @param weeksAhead - Number of weeks to look ahead (default: 4)
+ * @returns Array of Friday dates
+ */
+export function getNextFridays(weeksAhead: number = 4): Date[] {
+  const fridays: Date[] = [];
+  const firstFriday = getNextFriday();
+
+  for (let i = 0; i < weeksAhead; i++) {
+    const friday = new Date(firstFriday);
+    friday.setDate(friday.getDate() + (i * 7));
+    fridays.push(friday);
+  }
+
+  return fridays;
+}
