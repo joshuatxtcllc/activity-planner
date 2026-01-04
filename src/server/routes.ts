@@ -5,6 +5,7 @@ import { desc, and, gte, lte, eq } from "drizzle-orm";
 import { runAllScrapers } from "./scrapers";
 import logger from "./utils/logger";
 import { getNextFriday } from "./utils/date-utils";
+import { generateItinerary, type ItineraryPreferences } from "./services/itinerary-generator";
 
 const router = Router();
 
@@ -151,6 +152,49 @@ router.get("/stats", async (_req, res) => {
   } catch (error) {
     logger.error("Failed to fetch stats", { error });
     res.status(500).json({ error: "Failed to fetch stats" });
+  }
+});
+
+/**
+ * POST /api/itinerary/generate
+ * Generate a personalized Houston itinerary using AI
+ */
+router.post("/itinerary/generate", async (req, res) => {
+  try {
+    const preferences: ItineraryPreferences = req.body;
+
+    // Validate required fields
+    if (!preferences.date) {
+      return res.status(400).json({ error: "Date is required" });
+    }
+
+    // Validate date is in the future
+    const requestedDate = new Date(preferences.date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (requestedDate < today) {
+      return res.status(400).json({ error: "Date must be in the future" });
+    }
+
+    logger.info("Generating itinerary", { preferences });
+
+    const itinerary = await generateItinerary(preferences);
+
+    logger.info("Itinerary generated successfully", {
+      itineraryId: itinerary.id,
+      activityCount: itinerary.activities.length
+    });
+
+    res.json(itinerary);
+  } catch (error) {
+    logger.error("Failed to generate itinerary", { error });
+
+    if (error instanceof Error) {
+      res.status(500).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: "Failed to generate itinerary" });
+    }
   }
 });
 
