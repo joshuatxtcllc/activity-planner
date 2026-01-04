@@ -2,7 +2,7 @@ import axios from "axios";
 import logger from "../utils/logger";
 import type { NewEvent } from "../../shared/schema";
 import { generateEventHash } from "../utils/deduplication";
-import { getNextFriday } from "../utils/date-utils";
+import { getUpcomingWeeksRange } from "../utils/date-utils";
 
 interface SeatgeekEvent {
   id: string;
@@ -49,16 +49,8 @@ export async function scrapeSeatgeek(): Promise<NewEvent[]> {
   try {
     logger.info("Starting Seatgeek scraper for Houston events");
 
-    // Get this Friday and Sunday
-    const today = new Date();
-    const friday = getNextFriday(today);
-    const sunday = new Date(friday);
-    sunday.setDate(sunday.getDate() + 2);
-    sunday.setHours(23, 59, 59);
-
-    // Format dates for Seatgeek API (ISO format with time)
-    const startDate = friday.toISOString();
-    const endDate = sunday.toISOString();
+    // Get upcoming 4 weeks of events
+    const { startDate, endDate } = getUpcomingWeeksRange(4);
 
     // Houston coordinates
     const response = await axios.get(
@@ -69,9 +61,9 @@ export async function scrapeSeatgeek(): Promise<NewEvent[]> {
           lat: "29.7604",
           lon: "-95.3698",
           range: "25mi",
-          "datetime_utc.gte": startDate,
-          "datetime_utc.lte": endDate,
-          per_page: 100,
+          "datetime_utc.gte": startDate.toISOString(),
+          "datetime_utc.lte": endDate.toISOString(),
+          per_page: 200, // Increased to get more events
         },
       }
     );

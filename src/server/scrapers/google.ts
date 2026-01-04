@@ -2,7 +2,7 @@ import axios from "axios";
 import logger from "../utils/logger";
 import type { NewEvent } from "../../shared/schema";
 import { generateEventHash } from "../utils/deduplication";
-import { getNextFriday } from "../utils/date-utils";
+import { getNextFridays } from "../utils/date-utils";
 
 /**
  * Google Custom Search scraper
@@ -21,25 +21,64 @@ export async function scrapeGoogle(): Promise<NewEvent[]> {
   try {
     logger.info("Starting Google Custom Search for Houston events");
 
-    // Get this Friday and Sunday
+    // Get next 4 Fridays
+    const fridays = getNextFridays(4);
     const today = new Date();
-    const friday = getNextFriday(today);
-    const fridayFormatted = friday.toLocaleDateString("en-US", {
-      month: "long",
-      day: "numeric",
-    });
 
-    // Search queries for Houston-specific event sites
-    const queries = [
-      `Houston events this weekend ${fridayFormatted}`,
-      `Houston concerts this weekend`,
-      `Houston food events weekend`,
-      `Houston festivals ${fridayFormatted}`,
+    // Expanded search queries for more diverse results
+    const queryTemplates = [
+      // General events
+      "Houston events this weekend",
+      "Houston things to do this weekend",
+      "Houston weekend activities",
+      "Houston events calendar",
+
+      // Music & nightlife
+      "Houston concerts",
+      "Houston live music",
+      "Houston DJ shows",
+      "Houston nightlife events",
+
+      // Food & drink
+      "Houston food festivals",
+      "Houston brewery events",
+      "Houston restaurant week",
+      "Houston food truck events",
+
+      // Arts & culture
+      "Houston art exhibitions",
+      "Houston museum events",
+      "Houston theater shows",
+      "Houston gallery openings",
+
+      // Sports & fitness
+      "Houston sports events",
+      "Houston running events",
+      "Houston fitness classes",
+      "Houston outdoor activities",
+
+      // Family & community
+      "Houston family events",
+      "Houston community gatherings",
+      "Houston markets farmers",
+      "Houston park events",
+
+      // Seasonal & special
+      "Houston festivals",
+      "Houston comedy shows",
+      "Houston workshops",
+      "Houston networking events",
     ];
 
     const events: NewEvent[] = [];
+    const seenUrls = new Set<string>();
 
-    for (const query of queries) {
+    // Randomly select 8 queries to avoid hitting API limits
+    const selectedQueries = queryTemplates
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 8);
+
+    for (const query of selectedQueries) {
       try {
         const response = await axios.get(
           "https://www.googleapis.com/customsearch/v1",
@@ -64,8 +103,34 @@ export async function scrapeGoogle(): Promise<NewEvent[]> {
             const description = item.snippet || "";
             const url = item.link || "";
 
+            // Skip duplicates
+            if (seenUrls.has(url)) continue;
+            seenUrls.add(url);
+
             // Try to extract date from snippet or metadata
-            const startDate = parseEventDateFromText(description, title, friday);
+            const startDate = parseEventDateFromText(description, title, today);
+
+            // Categorize based on query and content
+            let category = "other";
+            const lowerQuery = query.toLowerCase();
+            const lowerTitle = title.toLowerCase();
+
+            if (lowerQuery.includes("concert") || lowerQuery.includes("music") || lowerTitle.includes("concert") || lowerTitle.includes("music")) {
+              category = "music";
+            } else if (lowerQuery.includes("food") || lowerQuery.includes("restaurant") || lowerTitle.includes("food")) {
+              category = "food";
+            } else if (lowerQuery.includes("art") || lowerQuery.includes("museum") || lowerQuery.includes("gallery")) {
+              category = "arts";
+            } else if (lowerQuery.includes("sport") || lowerQuery.includes("fitness") || lowerQuery.includes("running")) {
+              category = "fitness";
+            } else if (lowerQuery.includes("festival")) {
+              category = "culture";
+            } else if (lowerQuery.includes("comedy")) {
+              category = "comedy";
+            }
+
+            // Check if free
+            const isFree = /free|no charge|complimentary/i.test(description + title);
 
             const newEvent: NewEvent = {
               title,
@@ -75,6 +140,8 @@ export async function scrapeGoogle(): Promise<NewEvent[]> {
               url,
               imageUrl: item.pagemap?.cse_image?.[0]?.src,
               source: "google",
+              category,
+              isFree,
               uniqueKey: generateEventHash(title, startDate, "Houston, TX"),
             };
 

@@ -2,7 +2,7 @@ import axios from "axios";
 import logger from "../utils/logger";
 import type { NewEvent } from "../../shared/schema";
 import { generateEventHash } from "../utils/deduplication";
-import { getNextFriday } from "../utils/date-utils";
+import { getUpcomingWeeksRange } from "../utils/date-utils";
 
 interface TicketmasterEvent {
   id: string;
@@ -45,11 +45,8 @@ export async function scrapeTicketmaster(): Promise<NewEvent[]> {
   try {
     logger.info("Starting Ticketmaster scraper for Houston events");
 
-    // Get this Friday and Sunday
-    const today = new Date();
-    const friday = getNextFriday(today);
-    const sunday = new Date(friday);
-    sunday.setDate(sunday.getDate() + 2);
+    // Get upcoming 4 weeks of events
+    const { startDate, endDate } = getUpcomingWeeksRange(4);
 
     // Houston coordinates
     const response = await axios.get(
@@ -60,9 +57,9 @@ export async function scrapeTicketmaster(): Promise<NewEvent[]> {
           latlong: "29.7604,-95.3698", // Houston coordinates
           radius: "25",
           unit: "miles",
-          startDateTime: friday.toISOString().split('.')[0] + "Z",
-          endDateTime: sunday.toISOString().split('.')[0] + "Z",
-          size: 100,
+          startDateTime: startDate.toISOString().split('.')[0] + "Z",
+          endDateTime: endDate.toISOString().split('.')[0] + "Z",
+          size: 200, // Increased to get more events
           sort: "date,asc",
         },
       }

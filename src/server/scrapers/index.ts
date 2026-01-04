@@ -9,6 +9,10 @@ import { scrapeSeatgeek } from "./seatgeek";
 import { scrapeDo713 } from "./do713";
 import { scrapeHoustonPress } from "./houstonpress";
 import { scrapeSpaceCityRock } from "./spacecityrock";
+import { scrapePerplexity } from "./perplexity";
+import { scrapeReddit } from "./reddit";
+import { scrapeMeetup } from "./meetup";
+import { generateRecurringActivities } from "./recurring-activities";
 import { eq } from "drizzle-orm";
 
 /**
@@ -33,6 +37,10 @@ export async function runAllScrapers(): Promise<{
       do713Events,
       houstonPressEvents,
       spaceCityRockEvents,
+      perplexityEvents,
+      redditEvents,
+      meetupEvents,
+      recurringActivities,
     ] = await Promise.all([
       scrapeTicketmaster().catch(err => {
         logger.error("Ticketmaster scraper failed", { error: err });
@@ -62,6 +70,22 @@ export async function runAllScrapers(): Promise<{
         logger.error("SpaceCityRock scraper failed", { error: err });
         return [];
       }),
+      scrapePerplexity().catch(err => {
+        logger.error("Perplexity AI scraper failed", { error: err });
+        return [];
+      }),
+      scrapeReddit().catch(err => {
+        logger.error("Reddit scraper failed", { error: err });
+        return [];
+      }),
+      scrapeMeetup().catch(err => {
+        logger.error("Meetup scraper failed", { error: err });
+        return [];
+      }),
+      generateRecurringActivities().catch(err => {
+        logger.error("Recurring activities generator failed", { error: err });
+        return [];
+      }),
     ]);
 
     // Log results per source
@@ -73,6 +97,10 @@ export async function runAllScrapers(): Promise<{
       Do713: ${do713Events.length}
       HoustonPress: ${houstonPressEvents.length}
       SpaceCityRock: ${spaceCityRockEvents.length}
+      Perplexity AI: ${perplexityEvents.length}
+      Reddit: ${redditEvents.length}
+      Meetup: ${meetupEvents.length}
+      Recurring Activities: ${recurringActivities.length}
     `);
 
     // Combine all events
@@ -84,6 +112,10 @@ export async function runAllScrapers(): Promise<{
       ...do713Events,
       ...houstonPressEvents,
       ...spaceCityRockEvents,
+      ...perplexityEvents,
+      ...redditEvents,
+      ...meetupEvents,
+      ...recurringActivities,
     ];
 
     logger.info(`Total events scraped: ${allEvents.length}`);
@@ -129,6 +161,10 @@ export async function runAllScrapers(): Promise<{
       do713: do713Events.length,
       houstonpress: houstonPressEvents.length,
       spacecityrock: spaceCityRockEvents.length,
+      perplexity: perplexityEvents.length,
+      reddit: redditEvents.length,
+      meetup: meetupEvents.length,
+      recurring: recurringActivities.length,
     };
 
     return {

@@ -1,6 +1,6 @@
 # Houston Events Aggregator
 
-**Never miss another Houston event!** This app automatically scrapes weekend events from multiple sources including Ticketmaster, Eventbrite, SeatGeek, Google Search, Do713, Houston Press, and Space City Rock every Friday morning, delivering them in a clean interface so you always know what's happening in Houston.
+**Never miss another Houston event!** This app automatically scrapes events from **11 diverse sources** including Ticketmaster, Eventbrite, SeatGeek, Perplexity AI, Reddit, Meetup, Google Search, Do713, Houston Press, and Space City Rock, plus curated recurring activities. It searches **4 weeks ahead** (not just this weekend) to ensure you always know what's happening in Houston.
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Node Version](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen)
@@ -13,20 +13,25 @@
 **This app solves that by:**
 - 🤖 Automatically scraping events every Friday (no manual work!)
 - 📧 Emailing you when new events are found
-- 🎯 Aggregating from multiple sources (Ticketmaster, Eventbrite, SeatGeek, Google)
-- 🗓️ Focusing on weekend events (when you're actually free)
+- 🎯 Aggregating from **11 diverse sources** (APIs, AI, social media, web scraping)
+- 🗓️ Searching **4 weeks ahead** (not just this weekend!)
+- 🧠 **AI-powered discovery** via Perplexity for intelligent event curation
 - 🔄 De-duplicating so you don't see the same event twice
 
 ## Features
 
 ### Core Functionality
-- 🤖 **Automated Scraping** - Runs every Friday at 9 AM to fetch weekend events
-- 🎯 **Multiple Sources** - Aggregates from:
-  - **APIs**: Ticketmaster, Eventbrite, SeatGeek, Google Custom Search
-  - **Web Scraping**: Do713 (Houston's #1 events site), Houston Press, Space City Rock (local music)
+- 🤖 **Automated Scraping** - Runs every Friday at 9 AM to fetch events
+- 🗓️ **Extended Range** - Searches **4 weeks ahead**, not just this weekend
+- 🎯 **11 Diverse Sources** - Comprehensive event aggregation:
+  - **🎫 Ticketing APIs**: Ticketmaster, Eventbrite, SeatGeek
+  - **🧠 AI-Powered**: Perplexity AI for intelligent event discovery and itineraries
+  - **🌐 Social & Community**: Reddit (r/houston, r/HoustonEvents, etc.), Meetup.com
+  - **🔍 Search**: Enhanced Google Custom Search with 30+ query types
+  - **📰 Local Sites**: Do713, Houston Press, Space City Rock
+  - **🎨 Curated**: 20+ recurring Houston activities (museums, parks, etc.)
 - 🔄 **Smart Deduplication** - Prevents duplicate events using unique hash keys
 - 📧 **Email Notifications** - Get notified when new events are discovered
-- 🗓️ **Weekend Focus** - Automatically filters and displays upcoming weekend events
 - 📊 **Event Statistics** - Track scraping results and event counts
 
 ### Technical Features
@@ -55,16 +60,27 @@
 - **Routing:** Wouter (lightweight routing)
 
 ### APIs & Integrations
-**API-Based:**
-- Ticketmaster Discovery API
-- Eventbrite API v3
-- SeatGeek Events API
-- Google Custom Search JSON API
 
-**Web Scraping (using Cheerio):**
+**🎫 Ticketing APIs:**
+- Ticketmaster Discovery API - Major events and concerts
+- Eventbrite API v3 - Community and local events
+- SeatGeek Events API - Sports and entertainment
+
+**🧠 AI & Discovery:**
+- **Perplexity AI** - Real-time AI-powered event discovery with online search
+- Enhanced Google Custom Search - 30+ diverse query templates
+
+**🌐 Social & Community:**
+- **Reddit API** - Events from r/houston, r/HoustonEvents, r/houstonmusic, r/HoustonFood, r/HoustonBeer
+- **Meetup.com** - Local meetups and group events
+
+**📰 Web Scraping (using Cheerio):**
 - Do713.com - Houston's premier local events website
 - Houston Press Events - Local news and entertainment
 - Space City Rock - Houston's indie/local music scene
+
+**🎨 Curated Content:**
+- Recurring Activities Generator - 20+ always-available Houston attractions
 
 ## Quick Start
 
@@ -99,12 +115,13 @@ Edit `.env` with your configuration:
 # Database (required)
 DATABASE_URL=postgresql://user:pass@host:5432/dbname
 
-# API Keys (required)
+# API Keys (at least one required for scraping to work)
 TICKETMASTER_API_KEY=your_ticketmaster_key
 EVENTBRITE_API_KEY=your_eventbrite_key
 SEATGEEK_CLIENT_ID=your_seatgeek_client_id
 GOOGLE_API_KEY=your_google_api_key
 GOOGLE_SEARCH_ENGINE_ID=your_search_engine_id
+PERPLEXITY_API_KEY=your_perplexity_api_key
 
 # Email Notifications (optional but recommended)
 SMTP_HOST=smtp.gmail.com
@@ -189,6 +206,20 @@ Visit http://localhost:5000 to see your app!
 
 3. Free tier: 100 queries/day
 
+#### Perplexity AI (Recommended!)
+1. Visit [Perplexity AI](https://www.perplexity.ai/)
+2. Sign up for an account
+3. Go to [API Settings](https://www.perplexity.ai/settings/api)
+4. Generate a new API key
+5. Copy your API key
+6. **Why Perplexity?**
+   - Real-time web search for current events
+   - AI-curated activity suggestions
+   - Great at finding local itineraries and hidden gems
+   - Free tier: $5 credit, then pay-as-you-go (~$0.20/1K tokens)
+
+**Note:** Reddit and Meetup scrapers work without API keys using public endpoints!
+
 ## Usage
 
 ### Manual Event Scraping
@@ -199,12 +230,17 @@ npm run scrape
 ```
 
 This will:
-1. Fetch events from all sources:
-   - **APIs**: Ticketmaster, Eventbrite, SeatGeek, Google Custom Search
-   - **Web Scraping**: Do713, Houston Press, Space City Rock
-2. Deduplicate against existing events
-3. Save new events to database
-4. Display results summary
+1. Fetch events from all **11 sources**:
+   - **Ticketing APIs**: Ticketmaster, Eventbrite, SeatGeek
+   - **AI Discovery**: Perplexity AI (real-time search)
+   - **Social/Community**: Reddit, Meetup.com
+   - **Search**: Enhanced Google Custom Search (30+ query types)
+   - **Local Sites**: Do713, Houston Press, Space City Rock
+   - **Curated**: Recurring activities generator
+2. Search **4 weeks ahead** (not just this weekend)
+3. Deduplicate against existing events
+4. Save new events to database
+5. Display detailed results summary by source
 
 ### Automated Scheduling
 
@@ -369,11 +405,13 @@ CMD ["npm", "start"]
 
 **Required:**
 - ✅ `DATABASE_URL` - PostgreSQL connection string
-- ✅ `TICKETMASTER_API_KEY`
-- ✅ `EVENTBRITE_API_KEY`
-- ✅ `SEATGEEK_CLIENT_ID`
-- ✅ `GOOGLE_API_KEY`
-- ✅ `GOOGLE_SEARCH_ENGINE_ID`
+- ✅ At least ONE API key from below (more sources = better coverage):
+  - `TICKETMASTER_API_KEY` (Major events)
+  - `EVENTBRITE_API_KEY` (Community events)
+  - `SEATGEEK_CLIENT_ID` (Sports/entertainment)
+  - `PERPLEXITY_API_KEY` ⭐ **Recommended!** (AI-powered discovery)
+  - `GOOGLE_API_KEY` + `GOOGLE_SEARCH_ENGINE_ID` (Web search)
+  - Reddit/Meetup work without keys!
 
 **Recommended:**
 - 📧 `SMTP_*` variables for email notifications
@@ -388,16 +426,20 @@ CMD ["npm", "start"]
 ```
 houston-events-aggregator/
 ├── src/
-│   ├── server/                    # Backend code
+│   ├── server/                       # Backend code
 │   │   ├── scrapers/
-│   │   │   ├── ticketmaster.ts    # Ticketmaster API scraper
-│   │   │   ├── eventbrite.ts      # Eventbrite API scraper
-│   │   │   ├── seatgeek.ts        # SeatGeek API scraper
-│   │   │   ├── google.ts          # Google Custom Search API scraper
-│   │   │   ├── do713.ts           # Do713 web scraper
-│   │   │   ├── houstonpress.ts    # Houston Press web scraper
-│   │   │   ├── spacecityrock.ts   # Space City Rock web scraper
-│   │   │   └── index.ts           # Scraper orchestrator
+│   │   │   ├── ticketmaster.ts       # Ticketmaster API (4 weeks)
+│   │   │   ├── eventbrite.ts         # Eventbrite API (4 weeks)
+│   │   │   ├── seatgeek.ts           # SeatGeek API (4 weeks)
+│   │   │   ├── perplexity.ts         # Perplexity AI scraper (NEW!)
+│   │   │   ├── reddit.ts             # Reddit scraper (NEW!)
+│   │   │   ├── meetup.ts             # Meetup.com scraper (NEW!)
+│   │   │   ├── google.ts             # Enhanced Google Search (NEW!)
+│   │   │   ├── recurring-activities.ts # Curated activities (NEW!)
+│   │   │   ├── do713.ts              # Do713 web scraper
+│   │   │   ├── houstonpress.ts       # Houston Press web scraper
+│   │   │   ├── spacecityrock.ts      # Space City Rock web scraper
+│   │   │   └── index.ts              # Orchestrates all 11 scrapers
 │   │   ├── utils/
 │   │   │   ├── logger.ts          # Winston logger config
 │   │   │   ├── mailer.ts          # Email notifications

@@ -2,7 +2,7 @@ import axios from "axios";
 import logger from "../utils/logger";
 import type { NewEvent } from "../../shared/schema";
 import { generateEventHash } from "../utils/deduplication";
-import { getNextFriday } from "../utils/date-utils";
+import { getUpcomingWeeksRange } from "../utils/date-utils";
 
 interface EventbriteEvent {
   id: string;
@@ -48,11 +48,8 @@ export async function scrapeEventbrite(): Promise<NewEvent[]> {
   try {
     logger.info("Starting Eventbrite scraper for Houston events");
 
-    // Get this Friday and Sunday
-    const today = new Date();
-    const friday = getNextFriday(today);
-    const sunday = new Date(friday);
-    sunday.setDate(sunday.getDate() + 2);
+    // Get upcoming 4 weeks of events
+    const { startDate, endDate } = getUpcomingWeeksRange(4);
 
     // Use latitude/longitude for more reliable results
     const response = await axios.get(
@@ -65,8 +62,8 @@ export async function scrapeEventbrite(): Promise<NewEvent[]> {
           "location.latitude": "29.7604",
           "location.longitude": "-95.3698",
           "location.within": "25km",
-          "start_date.range_start": friday.toISOString(),
-          "start_date.range_end": sunday.toISOString(),
+          "start_date.range_start": startDate.toISOString(),
+          "start_date.range_end": endDate.toISOString(),
           expand: "venue,ticket_availability",
         },
       }
