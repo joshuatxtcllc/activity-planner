@@ -1,6 +1,7 @@
 import { Route, Switch } from "wouter";
 import EventsPage from "./pages/EventsPage";
 import StatsPage from "./pages/StatsPage";
+import ItineraryPlannerPage from "./pages/ItineraryPlannerPage";
 
 export default function App() {
   return (
@@ -20,6 +21,12 @@ export default function App() {
                   This Weekend
                 </a>
                 <a
+                  href="/planner"
+                  className="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium"
+                >
+                  AI Planner
+                </a>
+                <a
                   href="/stats"
                   className="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium"
                 >
@@ -36,6 +43,7 @@ export default function App() {
 
       <Switch>
         <Route path="/" component={EventsPage} />
+        <Route path="/planner" component={ItineraryPlannerPage} />
         <Route path="/stats" component={StatsPage} />
       </Switch>
     </div>
