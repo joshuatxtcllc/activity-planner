@@ -9,6 +9,17 @@ export function generateEventHash(
   date: Date,
   location: string
 ): string {
+  // Validate inputs to prevent invalid hash generation
+  if (!title || typeof title !== "string" || title.trim().length === 0) {
+    throw new Error("generateEventHash: title must be a non-empty string");
+  }
+  if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+    throw new Error("generateEventHash: date must be a valid Date object");
+  }
+  if (!location || typeof location !== "string" || location.trim().length === 0) {
+    throw new Error("generateEventHash: location must be a non-empty string");
+  }
+
   const normalized = `${title.toLowerCase().trim()}-${date.toISOString().split("T")[0]}-${location.toLowerCase().trim()}`;
   return crypto.createHash("sha256").update(normalized).digest("hex");
 }

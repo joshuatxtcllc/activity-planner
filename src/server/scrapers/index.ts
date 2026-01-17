@@ -123,14 +123,39 @@ export async function runAllScrapers(): Promise<{
     // Insert events, handling duplicates
     let newCount = 0;
     let duplicateCount = 0;
+    let skippedCount = 0;
 
     for (const event of allEvents) {
       try {
+        // Validate required fields before attempting insertion
+        if (!event.title || !event.startDate || !event.location || !event.url || !event.source) {
+          logger.warn("Skipping event with missing required fields", {
+            title: event.title || "MISSING",
+            startDate: event.startDate || "MISSING",
+            location: event.location || "MISSING",
+            url: event.url || "MISSING",
+            source: event.source || "MISSING",
+          });
+          skippedCount++;
+          continue;
+        }
+
+        // Validate uniqueKey exists
+        if (!event.uniqueKey || typeof event.uniqueKey !== "string" || event.uniqueKey.trim().length === 0) {
+          logger.warn("Skipping event with missing or invalid uniqueKey", {
+            title: event.title,
+            source: event.source,
+            uniqueKey: event.uniqueKey,
+          });
+          skippedCount++;
+          continue;
+        }
+
         // Check if event already exists by unique key
         const existing = await db
           .select()
           .from(events)
-          .where(eq(events.uniqueKey, event.uniqueKey!))
+          .where(eq(events.uniqueKey, event.uniqueKey))
           .limit(1);
 
         if (existing.length > 0) {
@@ -142,16 +167,35 @@ export async function runAllScrapers(): Promise<{
           logger.debug(`New event saved: ${event.title}`);
         }
       } catch (error) {
-        logger.error("Failed to save event", {
-          error: error instanceof Error ? error.message : String(error),
-          errorDetails: error,
-          event: event.title,
-          eventData: event,
-        });
+        // Check if this is a constraint violation error
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const isConstraintViolation = errorMessage.includes("unique constraint") ||
+                                       errorMessage.includes("duplicate key") ||
+                                       errorMessage.includes("violates");
+
+        if (isConstraintViolation) {
+          logger.error("Database constraint violation - duplicate uniqueKey detected", {
+            error: errorMessage,
+            title: event.title,
+            source: event.source,
+            uniqueKey: event.uniqueKey,
+            startDate: event.startDate,
+            location: event.location,
+          });
+          duplicateCount++; // Count as duplicate since it already exists
+        } else {
+          logger.error("Failed to save event", {
+            error: errorMessage,
+            errorDetails: error,
+            title: event.title,
+            source: event.source,
+            eventData: event,
+          });
+        }
       }
     }
 
-    logger.info(`✅ Scraping complete: ${newCount} new, ${duplicateCount} duplicates`);
+    logger.info(`✅ Scraping complete: ${newCount} new, ${duplicateCount} duplicates, ${skippedCount} skipped (invalid)`);
 
     const bySource: Record<string, number> = {
       ticketmaster: ticketmasterEvents.length,
