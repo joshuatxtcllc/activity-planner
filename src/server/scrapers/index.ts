@@ -13,6 +13,7 @@ import { scrapePerplexity } from "./perplexity";
 import { scrapeReddit } from "./reddit";
 import { scrapeMeetup } from "./meetup";
 import { generateRecurringActivities } from "./recurring-activities";
+import { scrapeTripAdvisor } from "./tripadvisor";
 import { eq } from "drizzle-orm";
 
 /**
@@ -41,6 +42,7 @@ export async function runAllScrapers(): Promise<{
       redditEvents,
       meetupEvents,
       recurringActivities,
+      tripadvisorEvents,
     ] = await Promise.all([
       scrapeTicketmaster().catch(err => {
         logger.error("Ticketmaster scraper failed", { error: err });
@@ -86,6 +88,10 @@ export async function runAllScrapers(): Promise<{
         logger.error("Recurring activities generator failed", { error: err });
         return [];
       }),
+      scrapeTripAdvisor().catch(err => {
+        logger.error("TripAdvisor scraper failed", { error: err });
+        return [];
+      }),
     ]);
 
     // Log results per source
@@ -101,6 +107,7 @@ export async function runAllScrapers(): Promise<{
       Reddit: ${redditEvents.length}
       Meetup: ${meetupEvents.length}
       Recurring Activities: ${recurringActivities.length}
+      TripAdvisor: ${tripadvisorEvents.length}
     `);
 
     // Combine all events
@@ -116,6 +123,7 @@ export async function runAllScrapers(): Promise<{
       ...redditEvents,
       ...meetupEvents,
       ...recurringActivities,
+      ...tripadvisorEvents,
     ];
 
     logger.info(`Total events scraped: ${allEvents.length}`);
@@ -209,6 +217,7 @@ export async function runAllScrapers(): Promise<{
       reddit: redditEvents.length,
       meetup: meetupEvents.length,
       recurring: recurringActivities.length,
+      tripadvisor: tripadvisorEvents.length,
     };
 
     return {
