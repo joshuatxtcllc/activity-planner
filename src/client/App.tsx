@@ -3,6 +3,7 @@ import { useState } from "react";
 import EventsPage from "./pages/EventsPage";
 import StatsPage from "./pages/StatsPage";
 import ItineraryPlannerPage from "./pages/ItineraryPlannerPage";
+import CuratorPage from "./pages/CuratorPage";
 
 export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -23,6 +24,12 @@ export default function App() {
                   className="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium"
                 >
                   This Weekend
+                </a>
+                <a
+                  href="/curator"
+                  className="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium"
+                >
+                  🎯 Activity Curator
                 </a>
                 <a
                   href="/planner"
@@ -88,6 +95,13 @@ export default function App() {
                   This Weekend
                 </a>
                 <a
+                  href="/curator"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="text-gray-700 hover:text-indigo-600 hover:bg-gray-50 px-3 py-2 rounded-md text-base font-medium"
+                >
+                  🎯 Activity Curator
+                </a>
+                <a
                   href="/planner"
                   onClick={() => setMobileMenuOpen(false)}
                   className="text-gray-700 hover:text-indigo-600 hover:bg-gray-50 px-3 py-2 rounded-md text-base font-medium"
@@ -109,6 +123,7 @@ export default function App() {
 
       <Switch>
         <Route path="/" component={EventsPage} />
+        <Route path="/curator" component={CuratorPage} />
         <Route path="/planner" component={ItineraryPlannerPage} />
         <Route path="/stats" component={StatsPage} />
       </Switch>
