@@ -8,6 +8,7 @@ import {
   vibeModeTemplates,
 } from './preference-parser';
 import { WeatherData, isGoodOutdoorWeather } from './weather-adapter';
+import { getNeighborhoodCluster, getNeighborhoodDistance } from './neighborhood-clusters';
 import logger from '../utils/logger';
 
 export interface ActivityRecommendation {
@@ -50,11 +51,17 @@ export async function generateRecommendations(
       reasoning: generateReasoning(activity, context),
     }));
 
-    // Sort by score descending
+    // Sort by score descending to find primary neighborhood
     const sorted = scoredActivities.sort((a, b) => b.score - a.score);
 
+    // Apply geographic clustering: boost activities near the top-scored activity's neighborhood
+    const clustered = applyGeographicClustering(sorted);
+
+    // Re-sort after clustering adjustments
+    const resorted = clustered.sort((a, b) => b.score - a.score);
+
     // Apply diversity filter to ensure variety
-    const diverse = ensureDiversity(sorted);
+    const diverse = ensureDiversity(resorted);
 
     return diverse.slice(0, limit);
   } catch (error) {
@@ -255,6 +262,58 @@ function generateReasoning(
   }
 
   return reasons.slice(0, 3).join('. ') + '.';
+}
+
+/**
+ * Apply geographic clustering to keep recommendations close together
+ * Identifies the primary neighborhood cluster and boosts nearby activities
+ */
+function applyGeographicClustering(
+  recommendations: ActivityRecommendation[]
+): ActivityRecommendation[] {
+  if (recommendations.length === 0) return [];
+
+  // Find the primary neighborhood from top 3 scored activities
+  const topActivities = recommendations.slice(0, 3);
+  const neighborhoodScores: Record<string, number> = {};
+
+  // Count weighted scores by neighborhood
+  topActivities.forEach((rec, index) => {
+    const weight = 3 - index; // Top activity gets weight 3, second gets 2, etc.
+    const neighborhood = rec.activity.neighborhood;
+    neighborhoodScores[neighborhood] = (neighborhoodScores[neighborhood] || 0) + (rec.score * weight);
+  });
+
+  // Find primary neighborhood
+  let primaryNeighborhood = topActivities[0].activity.neighborhood;
+  let maxScore = 0;
+  for (const [neighborhood, score] of Object.entries(neighborhoodScores)) {
+    if (score > maxScore) {
+      maxScore = score;
+      primaryNeighborhood = neighborhood;
+    }
+  }
+
+  logger.info(`Primary neighborhood for clustering: ${primaryNeighborhood}`);
+
+  // Apply distance-based score adjustments
+  return recommendations.map((rec) => {
+    const distance = getNeighborhoodDistance(primaryNeighborhood, rec.activity.neighborhood);
+
+    if (distance === 0) {
+      // Same neighborhood - small boost
+      rec.score += 10;
+    } else if (distance === 1) {
+      // Adjacent cluster - neutral
+      // No change
+    } else {
+      // Far away - significant penalty
+      rec.score -= 25;
+      logger.debug(`Penalized ${rec.activity.name} for being far from ${primaryNeighborhood}`);
+    }
+
+    return rec;
+  });
 }
 
 /**
