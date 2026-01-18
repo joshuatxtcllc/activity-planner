@@ -100,6 +100,68 @@ CREATE TABLE IF NOT EXISTS "user_profiles" (
 
 -- Create index for user_profiles
 CREATE INDEX IF NOT EXISTS "idx_user_profiles_session" ON "user_profiles" ("session_id");
+
+-- Create houston_activities table for evergreen activity catalog
+CREATE TABLE IF NOT EXISTS "houston_activities" (
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "name" text NOT NULL,
+  "description" text NOT NULL,
+  "type" text NOT NULL,
+  "category" text NOT NULL,
+  "vibes" text[] NOT NULL,
+  "neighborhood" text NOT NULL,
+  "address" text,
+  "lat" text,
+  "lng" text,
+  "best_time_of_day" text[],
+  "best_season" text[],
+  "typical_duration" integer,
+  "indoor_outdoor" text NOT NULL,
+  "weather_dependent" boolean DEFAULT false,
+  "price_level" integer NOT NULL,
+  "estimated_cost" integer,
+  "social_setting" text[],
+  "energy_level" text NOT NULL,
+  "url" text,
+  "image_url" text,
+  "is_active" boolean DEFAULT true,
+  "popularity_score" integer DEFAULT 0,
+  "created_at" timestamp DEFAULT now() NOT NULL,
+  "updated_at" timestamp DEFAULT now() NOT NULL
+);
+
+-- Create indexes for houston_activities
+CREATE INDEX IF NOT EXISTS "idx_activities_neighborhood" ON "houston_activities" ("neighborhood");
+CREATE INDEX IF NOT EXISTS "idx_activities_type" ON "houston_activities" ("type");
+CREATE INDEX IF NOT EXISTS "idx_activities_price_level" ON "houston_activities" ("price_level");
+CREATE INDEX IF NOT EXISTS "idx_activities_energy_level" ON "houston_activities" ("energy_level");
+CREATE INDEX IF NOT EXISTS "idx_activities_active" ON "houston_activities" ("is_active");
+
+-- Create curator_conversations table for tracking curator sessions
+CREATE TABLE IF NOT EXISTS "curator_conversations" (
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "session_id" text NOT NULL,
+  "preferences" text,
+  "questions_asked" integer DEFAULT 0,
+  "time_of_day" text,
+  "day_of_week" text,
+  "season" text,
+  "weather_condition" text,
+  "temperature" integer,
+  "energy_level" text,
+  "budget" text,
+  "social_context" text,
+  "indoor_outdoor_pref" text,
+  "vibe_mode" text,
+  "recommended_activity_ids" text[],
+  "conversation_state" text DEFAULT 'started',
+  "created_at" timestamp DEFAULT now() NOT NULL,
+  "updated_at" timestamp DEFAULT now() NOT NULL
+);
+
+-- Create indexes for curator_conversations
+CREATE INDEX IF NOT EXISTS "idx_curator_conv_session" ON "curator_conversations" ("session_id");
+CREATE INDEX IF NOT EXISTS "idx_curator_conv_state" ON "curator_conversations" ("conversation_state");
 `;
 
 /**
@@ -111,6 +173,17 @@ export async function initializeDatabase(): Promise<void> {
     const client = getClient(); // Ensure client is initialized
     await client.unsafe(MIGRATION_SQL);
     logger.info("✅ Database schema initialized successfully");
+
+    // Seed Houston activities if not already done
+    try {
+      const { seedHoustonActivities } = await import('./scripts/seed-activities');
+      await seedHoustonActivities();
+    } catch (seedError) {
+      logger.warn("Failed to seed activities (non-fatal)", {
+        error: seedError instanceof Error ? seedError.message : String(seedError)
+      });
+      // Don't throw - seeding failure shouldn't prevent server startup
+    }
   } catch (error) {
     logger.error("Failed to initialize database schema", {
       error: error instanceof Error ? error.message : String(error),

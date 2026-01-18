@@ -90,3 +90,88 @@ export type UserPreference = typeof userPreferences.$inferSelect;
 export type NewUserPreference = typeof userPreferences.$inferInsert;
 export type UserProfile = typeof userProfiles.$inferSelect;
 export type NewUserProfile = typeof userProfiles.$inferInsert;
+
+// Houston Activities - Evergreen activity catalog
+export const houstonActivities = pgTable("houston_activities", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+
+  // Classification
+  type: text("type").notNull(), // bar, restaurant, park, walk, experience, neighborhood, attraction
+  category: text("category").notNull(), // food, drinks, outdoor, culture, shopping, nightlife
+  vibes: text("vibes").array().notNull(), // ['high-energy', 'chill', 'romantic', 'artsy']
+
+  // Location
+  neighborhood: text("neighborhood").notNull(), // Montrose, Heights, Midtown, etc.
+  address: text("address"),
+  lat: text("lat"),
+  lng: text("lng"),
+
+  // Timing
+  bestTimeOfDay: text("best_time_of_day").array(), // ['morning', 'afternoon', 'evening', 'night', 'late-night']
+  bestSeason: text("best_season").array(), // ['spring', 'summer', 'fall', 'winter', 'all']
+  typicalDuration: integer("typical_duration"), // in minutes
+
+  // Conditions
+  indoorOutdoor: text("indoor_outdoor").notNull(), // indoor, outdoor, both
+  weatherDependent: boolean("weather_dependent").default(false),
+
+  // Pricing & Social
+  priceLevel: integer("price_level").notNull(), // 1 ($), 2 ($$), 3 ($$$), 4 ($$$$)
+  estimatedCost: integer("estimated_cost"), // in cents, typical cost per person
+  socialSetting: text("social_setting").array(), // ['solo', 'couple', 'small-group', 'large-group']
+  energyLevel: text("energy_level").notNull(), // low, medium, high
+
+  // Links & Media
+  url: text("url"),
+  imageUrl: text("image_url"),
+
+  // Metadata
+  isActive: boolean("is_active").default(true),
+  popularityScore: integer("popularity_score").default(0), // for ranking
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Curator Conversations - Track conversation state
+export const curatorConversations = pgTable("curator_conversations", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  sessionId: text("session_id").notNull(),
+
+  // User context
+  preferences: text("preferences"), // JSON string of collected preferences
+  questionsAsked: integer("questions_asked").default(0),
+
+  // Current context
+  timeOfDay: text("time_of_day"), // morning, afternoon, evening, night, late-night
+  dayOfWeek: text("day_of_week"),
+  season: text("season"),
+  weatherCondition: text("weather_condition"), // sunny, rainy, hot, cold
+  temperature: integer("temperature"), // in fahrenheit
+
+  // Parsed preferences
+  energyLevel: text("energy_level"), // low, medium, high
+  budget: text("budget"), // cheap, moderate, splurge
+  socialContext: text("social_context"), // solo, date, friends, family
+  indoorOutdoorPref: text("indoor_outdoor_pref"), // indoor, outdoor, no-preference
+  vibeMode: text("vibe_mode"), // high-energy, late-night, cheap-fun, date-night, tourist, local-hidden-gems
+
+  // Recommendations given
+  recommendedActivityIds: text("recommended_activity_ids").array(),
+
+  // Metadata
+  conversationState: text("conversation_state").default("started"), // started, collecting, ready, completed
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertHoustonActivitySchema = createInsertSchema(houstonActivities);
+export const selectHoustonActivitySchema = createSelectSchema(houstonActivities);
+export const insertCuratorConversationSchema = createInsertSchema(curatorConversations);
+export const selectCuratorConversationSchema = createSelectSchema(curatorConversations);
+
+export type HoustonActivity = typeof houstonActivities.$inferSelect;
+export type NewHoustonActivity = typeof houstonActivities.$inferInsert;
+export type CuratorConversation = typeof curatorConversations.$inferSelect;
+export type NewCuratorConversation = typeof curatorConversations.$inferInsert;
