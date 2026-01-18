@@ -1,6 +1,6 @@
 import { db } from '../db';
 import { houstonActivities, HoustonActivity } from '../../shared/schema';
-import { eq, and, inArray, sql } from 'drizzle-orm';
+import { eq, and, inArray, sql, desc } from 'drizzle-orm';
 import {
   ParsedPreferences,
   getPriceLevelRange,
@@ -89,11 +89,16 @@ function scoreActivity(
       score += 15;
     }
 
-    // Vibe match
-    const vibeMatches = activity.vibes?.filter((v) =>
-      template.preferences.vibeMode?.includes(v)
-    ).length || 0;
-    score += vibeMatches * 10;
+    // Vibe keyword match - check if activity vibes align with vibe mode
+    // E.g., 'date-night' vibe mode should match activities with 'romantic', 'date-night' vibes
+    if (activity.vibes && activity.vibes.length > 0) {
+      const vibeKeywords = preferences.vibeMode.split('-');
+      const vibeMatches = activity.vibes.filter((v) =>
+        vibeKeywords.some(keyword => v.toLowerCase().includes(keyword)) ||
+        v.toLowerCase() === preferences.vibeMode
+      ).length;
+      score += vibeMatches * 5;
+    }
   }
 
   // Energy level match
@@ -297,7 +302,7 @@ export async function getFallbackRecommendations(
       .select()
       .from(houstonActivities)
       .where(eq(houstonActivities.isActive, true))
-      .orderBy(sql`${houstonActivities.popularityScore} DESC`)
+      .orderBy(desc(houstonActivities.popularityScore))
       .limit(10);
 
     // Filter by weather and time
@@ -346,7 +351,7 @@ export async function getNeighborhoodRecommendations(
           eq(houstonActivities.isActive, true)
         )
       )
-      .orderBy(sql`${houstonActivities.popularityScore} DESC`)
+      .orderBy(desc(houstonActivities.popularityScore))
       .limit(limit);
 
     return activities;
@@ -364,17 +369,17 @@ export async function getActivitiesByVibe(
   limit: number = 5
 ): Promise<HoustonActivity[]> {
   try {
-    // Use raw SQL to query JSONB array column
+    // Use raw SQL to query array column with proper parameter binding
     const activities = await db
       .select()
       .from(houstonActivities)
       .where(
         and(
-          sql`${houstonActivities.vibes} @> ARRAY[${vibe}]::text[]`,
+          sql`${houstonActivities.vibes} && ARRAY[${sql.raw(`'${vibe.replace(/'/g, "''")}'`)}]::text[]`,
           eq(houstonActivities.isActive, true)
         )
       )
-      .orderBy(sql`${houstonActivities.popularityScore} DESC`)
+      .orderBy(desc(houstonActivities.popularityScore))
       .limit(limit);
 
     return activities;
