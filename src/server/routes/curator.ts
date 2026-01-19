@@ -171,7 +171,8 @@ router.post('/respond', async (req, res) => {
       dayOfWeek: conversation.dayOfWeek || getDayOfWeek(),
     };
 
-    const recommendations = await generateRecommendations(context, 5);
+    const sessionId = req.sessionID || req.body.sessionId || 'anonymous';
+    const recommendations = await generateRecommendations(context, 5, sessionId);
 
     // If no recommendations, try fallback
     const finalRecommendations =
@@ -261,7 +262,8 @@ router.get('/quick-recommend', async (req, res) => {
       dayOfWeek,
     };
 
-    const recommendations = await generateRecommendations(context, 5);
+    const sessionId = req.sessionID || (req.query.sessionId as string) || 'anonymous';
+    const recommendations = await generateRecommendations(context, 5, sessionId);
     const message = formatRecommendations(recommendations, context);
 
     res.json({
