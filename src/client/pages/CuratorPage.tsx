@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
+import AddActivityModal from '../components/AddActivityModal';
+import MyActivitiesSection from '../components/MyActivitiesSection';
 
 interface VibeMode {
   id: string;
@@ -57,6 +59,7 @@ export default function CuratorPage() {
   const [userInput, setUserInput] = useState('');
   const [recommendations, setRecommendations] = useState<Activity[]>([]);
   const [weatherContext, setWeatherContext] = useState<ConversationResponse['context'] | null>(null);
+  const [isAddActivityModalOpen, setIsAddActivityModalOpen] = useState(false);
 
   // Start conversation
   const startMutation = useMutation({
@@ -164,9 +167,18 @@ export default function CuratorPage() {
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            🎯 Local Activity Curator
-          </h1>
+          <div className="flex justify-center items-center gap-4 mb-2">
+            <h1 className="text-4xl font-bold text-gray-900">
+              🎯 Local Activity Curator
+            </h1>
+            <button
+              onClick={() => setIsAddActivityModalOpen(true)}
+              className="px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors text-sm"
+              title="Add your own activity"
+            >
+              + Add Activity
+            </button>
+          </div>
           <p className="text-lg text-gray-600">
             Your personal guide to evergreen Houston activities
           </p>
@@ -355,7 +367,18 @@ export default function CuratorPage() {
             Failed to get recommendations. Please try again.
           </div>
         )}
+
+        {/* My Activities Section */}
+        <div className="mt-8">
+          <MyActivitiesSection />
+        </div>
       </div>
+
+      {/* Add Activity Modal */}
+      <AddActivityModal
+        isOpen={isAddActivityModalOpen}
+        onClose={() => setIsAddActivityModalOpen(false)}
+      />
     </div>
   );
 }

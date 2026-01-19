@@ -175,3 +175,57 @@ export type HoustonActivity = typeof houstonActivities.$inferSelect;
 export type NewHoustonActivity = typeof houstonActivities.$inferInsert;
 export type CuratorConversation = typeof curatorConversations.$inferSelect;
 export type NewCuratorConversation = typeof curatorConversations.$inferInsert;
+
+// User Submitted Activities - User-created activities for personalized recommendations
+export const userSubmittedActivities = pgTable("user_submitted_activities", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  sessionId: text("session_id").notNull(), // Owner of the activity
+
+  // Basic Info
+  name: text("name").notNull(),
+  description: text("description"),
+
+  // Classification (optional fields for user input)
+  type: text("type"), // bar, restaurant, park, walk, experience, neighborhood, attraction
+  category: text("category"), // food, drinks, outdoor, culture, shopping, nightlife
+  vibes: text("vibes").array(), // ['high-energy', 'chill', 'romantic', 'artsy']
+
+  // Location
+  neighborhood: text("neighborhood"),
+  address: text("address"),
+  lat: text("lat"),
+  lng: text("lng"),
+
+  // Timing
+  bestTimeOfDay: text("best_time_of_day").array(), // ['morning', 'afternoon', 'evening', 'night', 'late-night']
+  bestSeason: text("best_season").array(), // ['spring', 'summer', 'fall', 'winter', 'all']
+  typicalDuration: integer("typical_duration"), // in minutes
+
+  // Conditions
+  indoorOutdoor: text("indoor_outdoor"), // indoor, outdoor, both
+  weatherDependent: boolean("weather_dependent").default(false),
+
+  // Pricing & Social
+  priceLevel: integer("price_level"), // 1 ($), 2 ($$), 3 ($$$), 4 ($$$$)
+  estimatedCost: integer("estimated_cost"), // in cents, typical cost per person
+  socialSetting: text("social_setting").array(), // ['solo', 'couple', 'small-group', 'large-group']
+  energyLevel: text("energy_level"), // low, medium, high
+
+  // Links & Media
+  url: text("url"),
+  imageUrl: text("image_url"),
+
+  // User-specific metadata
+  useInRecommendations: boolean("use_in_recommendations").default(true),
+  timesRecommended: integer("times_recommended").default(0),
+
+  // Metadata
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertUserSubmittedActivitySchema = createInsertSchema(userSubmittedActivities);
+export const selectUserSubmittedActivitySchema = createSelectSchema(userSubmittedActivities);
+
+export type UserSubmittedActivity = typeof userSubmittedActivities.$inferSelect;
+export type NewUserSubmittedActivity = typeof userSubmittedActivities.$inferInsert;

@@ -7,11 +7,15 @@ import logger from "./utils/logger";
 import { getNextFriday } from "./utils/date-utils";
 import { generateItinerary, type ItineraryPreferences } from "./services/itinerary-generator";
 import curatorRoutes from "./routes/curator";
+import userActivitiesRoutes from "./routes/user-activities";
 
 const router = Router();
 
 // Mount curator routes
 router.use("/curator", curatorRoutes);
+
+// Mount user activities routes
+router.use("/user-activities", userActivitiesRoutes);
 
 /**
  * GET /api/events

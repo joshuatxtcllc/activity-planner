@@ -1,5 +1,5 @@
 import { db } from '../db';
-import { houstonActivities, HoustonActivity } from '../../shared/schema';
+import { houstonActivities, HoustonActivity, userSubmittedActivities, UserSubmittedActivity } from '../../shared/schema';
 import { eq, and, inArray, sql, desc } from 'drizzle-orm';
 import {
   ParsedPreferences,
@@ -11,8 +11,11 @@ import { WeatherData, isGoodOutdoorWeather } from './weather-adapter';
 import { getNeighborhoodCluster, getNeighborhoodDistance } from './neighborhood-clusters';
 import logger from '../utils/logger';
 
+// Type for activities that can be either curated or user-submitted
+export type RecommendableActivity = (HoustonActivity | UserSubmittedActivity) & { isUserSubmitted?: boolean };
+
 export interface ActivityRecommendation {
-  activity: HoustonActivity;
+  activity: RecommendableActivity;
   score: number;
   reasoning: string;
 }
@@ -30,22 +33,43 @@ export interface RecommendationContext {
  */
 export async function generateRecommendations(
   context: RecommendationContext,
-  limit: number = 5
+  limit: number = 5,
+  sessionId?: string
 ): Promise<ActivityRecommendation[]> {
   try {
-    // Fetch all active activities
-    const activities = await db
+    // Fetch all active curated activities
+    const curatedActivities = await db
       .select()
       .from(houstonActivities)
       .where(eq(houstonActivities.isActive, true));
 
-    if (activities.length === 0) {
+    // Fetch user-submitted activities if sessionId provided
+    let userActivities: UserSubmittedActivity[] = [];
+    if (sessionId) {
+      userActivities = await db
+        .select()
+        .from(userSubmittedActivities)
+        .where(
+          and(
+            eq(userSubmittedActivities.sessionId, sessionId),
+            eq(userSubmittedActivities.useInRecommendations, true)
+          )
+        );
+    }
+
+    // Merge activities and mark user-submitted ones
+    const allActivities: RecommendableActivity[] = [
+      ...curatedActivities.map(a => ({ ...a, isUserSubmitted: false })),
+      ...userActivities.map(a => ({ ...a, isUserSubmitted: true }))
+    ];
+
+    if (allActivities.length === 0) {
       logger.warn('No activities found in database');
       return [];
     }
 
     // Score each activity
-    const scoredActivities = activities.map((activity) => ({
+    const scoredActivities = allActivities.map((activity) => ({
       activity,
       score: scoreActivity(activity, context),
       reasoning: generateReasoning(activity, context),
@@ -75,10 +99,15 @@ export async function generateRecommendations(
  * Higher score = better match
  */
 function scoreActivity(
-  activity: HoustonActivity,
+  activity: RecommendableActivity,
   context: RecommendationContext
 ): number {
   let score = activity.popularityScore || 50; // Base score
+
+  // Boost user-submitted activities to increase their chances
+  if (activity.isUserSubmitted) {
+    score += 15; // Moderate boost for personalization
+  }
 
   const { preferences, weather, timeOfDay, season } = context;
 
@@ -212,11 +241,16 @@ function scoreActivity(
  * Generate human-readable reasoning for why activity was recommended
  */
 function generateReasoning(
-  activity: HoustonActivity,
+  activity: RecommendableActivity,
   context: RecommendationContext
 ): string {
   const reasons: string[] = [];
   const { preferences, weather, timeOfDay } = context;
+
+  // User-submitted activity
+  if (activity.isUserSubmitted) {
+    reasons.push('Your personal activity');
+  }
 
   // Vibe mode reasoning
   if (preferences.vibeMode) {
