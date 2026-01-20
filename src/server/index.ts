@@ -6,10 +6,12 @@ import rateLimit from "express-rate-limit";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { existsSync, readdirSync } from "fs";
+import { createServer } from "http";
 import logger from "./utils/logger";
 import routes from "./routes";
 import { startScheduler } from "./scheduler";
 import { initializeDatabase } from "./db";
+import { MCPServer } from "./mcp/MCPServer.js";
 
 // Handle unhandled promise rejections
 process.on("unhandledRejection", (reason, promise) => {
@@ -159,10 +161,18 @@ async function startServer() {
     // Initialize database schema first
     await initializeDatabase();
 
-    // Only start listening after database is ready
-    app.listen(PORT, "0.0.0.0", () => {
+    // Create HTTP server
+    const httpServer = createServer(app);
+
+    // Initialize MCP Server with WebSocket support
+    const mcpServer = new MCPServer(httpServer);
+    logger.info("✅ MCP Server initialized with multi-agent support");
+
+    // Only start listening after database and MCP are ready
+    httpServer.listen(PORT, "0.0.0.0", () => {
       logger.info(`🚀 Server running on port ${PORT}`);
       logger.info(`Environment: ${process.env.NODE_ENV || "development"}`);
+      logger.info(`💬 Chatbot WebSocket available`);
 
       if (process.env.NODE_ENV === "production" || process.env.ENABLE_SCHEDULER === "true") {
         startScheduler();

@@ -21,7 +21,7 @@ function getClient() {
   return client;
 }
 
-function getDb() {
+export function getDb() {
   if (!dbInstance) {
     dbInstance = drizzle(getClient(), { schema });
   }

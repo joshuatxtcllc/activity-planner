@@ -4,6 +4,7 @@ import EventsPage from "./pages/EventsPage";
 import StatsPage from "./pages/StatsPage";
 import ItineraryPlannerPage from "./pages/ItineraryPlannerPage";
 import CuratorPage from "./pages/CuratorPage";
+import ChatbotWidget from "./components/ChatbotWidget";
 
 export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -127,6 +128,9 @@ export default function App() {
         <Route path="/planner" component={ItineraryPlannerPage} />
         <Route path="/stats" component={StatsPage} />
       </Switch>
+
+      {/* Chatbot Widget - Appears on all pages */}
+      <ChatbotWidget />
     </div>
   );
 }
