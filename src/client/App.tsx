@@ -4,6 +4,7 @@ import EventsPage from "./pages/EventsPage";
 import StatsPage from "./pages/StatsPage";
 import ItineraryPlannerPage from "./pages/ItineraryPlannerPage";
 import CuratorPage from "./pages/CuratorPage";
+import SearchPage from "./pages/SearchPage";
 import ChatbotWidget from "./components/ChatbotWidget";
 
 export default function App() {
@@ -37,6 +38,12 @@ export default function App() {
                   className="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium"
                 >
                   AI Planner
+                </a>
+                <a
+                  href="/search"
+                  className="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium"
+                >
+                  Search
                 </a>
                 <a
                   href="/stats"
@@ -110,6 +117,13 @@ export default function App() {
                   AI Planner
                 </a>
                 <a
+                  href="/search"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="text-gray-700 hover:text-indigo-600 hover:bg-gray-50 px-3 py-2 rounded-md text-base font-medium"
+                >
+                  Search
+                </a>
+                <a
                   href="/stats"
                   onClick={() => setMobileMenuOpen(false)}
                   className="text-gray-700 hover:text-indigo-600 hover:bg-gray-50 px-3 py-2 rounded-md text-base font-medium"
@@ -126,6 +140,7 @@ export default function App() {
         <Route path="/" component={EventsPage} />
         <Route path="/curator" component={CuratorPage} />
         <Route path="/planner" component={ItineraryPlannerPage} />
+        <Route path="/search" component={SearchPage} />
         <Route path="/stats" component={StatsPage} />
       </Switch>
 
