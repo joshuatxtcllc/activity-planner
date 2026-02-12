@@ -1,6 +1,7 @@
 import type { Event } from "../../shared/schema";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import ExternalLinkWarning from "./ExternalLinkWarning";
+import { getVerifiedSellerName } from "../utils/linkSafety";
 
 interface EventCardProps {
   event: Event;
@@ -22,11 +23,15 @@ export default function EventCard({ event, onLike }: EventCardProps) {
     }
   };
 
+  const verifiedSeller = useMemo(() => getVerifiedSellerName(event.url), [event.url]);
+
   return (
     <div className="relative bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow overflow-hidden">
       <ExternalLinkWarning
         href={event.url}
         className="block"
+        eventTitle={event.title}
+        displayedPrice={event.priceMin ? { min: event.priceMin, max: event.priceMax ?? undefined } : undefined}
       >
         {event.imageUrl && (
           <img
@@ -79,9 +84,16 @@ export default function EventCard({ event, onLike }: EventCardProps) {
             )}
 
             <div className="flex items-center justify-between pt-2 border-t">
-              <span className="text-xs text-gray-400 capitalize">
-                {event.source}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-400 capitalize">
+                  {event.source}
+                </span>
+                {verifiedSeller && (
+                  <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium" title={`Verified seller: ${verifiedSeller}`}>
+                    ✓ Verified
+                  </span>
+                )}
+              </div>
               {event.category && (
                 <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded capitalize">
                   {event.category}

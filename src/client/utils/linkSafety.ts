@@ -131,3 +131,35 @@ export function getSafetyLevel(result: LinkSafetyResult): 'trusted' | 'unknown' 
   if (result.isTrusted) return 'trusted';
   return 'unknown';
 }
+
+/** Map of domains to friendly seller names for badge display. */
+const SELLER_NAMES: Record<string, string> = {
+  'ticketmaster.com': 'Ticketmaster',
+  'livenation.com': 'Live Nation',
+  'eventbrite.com': 'Eventbrite',
+  'seatgeek.com': 'SeatGeek',
+  'stubhub.com': 'StubHub',
+  'axs.com': 'AXS',
+  'vividseats.com': 'Vivid Seats',
+  'dice.fm': 'DICE',
+  'do713.com': 'Do713',
+  'meetup.com': 'Meetup',
+};
+
+/**
+ * Get the verified seller name for a URL, or null if unrecognized.
+ * Used for inline badge display on event cards.
+ */
+export function getVerifiedSellerName(url: string): string | null {
+  try {
+    const domain = new URL(url).hostname.replace(/^www\./, '');
+    for (const [sellerDomain, name] of Object.entries(SELLER_NAMES)) {
+      if (domain === sellerDomain || domain.endsWith('.' + sellerDomain)) {
+        return name;
+      }
+    }
+  } catch {
+    // Invalid URL
+  }
+  return null;
+}
