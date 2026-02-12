@@ -1,5 +1,6 @@
 import "dotenv/config";
 import express from "express";
+import helmet from "helmet";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
@@ -43,7 +44,13 @@ const __dirname = dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Note: Helmet removed to avoid conflicts with Vite SPA in production
+// Helmet for security headers, configured to work with Vite SPA
+app.use(
+  helmet({
+    contentSecurityPolicy: false, // Disabled to allow Vite inline scripts in dev
+    crossOriginEmbedderPolicy: false, // Allow embedding external images/resources
+  })
+);
 
 app.use(
   cors({

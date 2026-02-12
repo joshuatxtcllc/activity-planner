@@ -5,6 +5,7 @@ import StatsPage from "./pages/StatsPage";
 import ItineraryPlannerPage from "./pages/ItineraryPlannerPage";
 import CuratorPage from "./pages/CuratorPage";
 import SearchPage from "./pages/SearchPage";
+import SafetyPage from "./pages/SafetyPage";
 import ChatbotWidget from "./components/ChatbotWidget";
 
 export default function App() {
@@ -50,6 +51,12 @@ export default function App() {
                   className="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium"
                 >
                   Stats
+                </a>
+                <a
+                  href="/safety"
+                  className="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium"
+                >
+                  Safety Guide
                 </a>
               </div>
             </div>
@@ -130,6 +137,13 @@ export default function App() {
                 >
                   Stats
                 </a>
+                <a
+                  href="/safety"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="text-gray-700 hover:text-indigo-600 hover:bg-gray-50 px-3 py-2 rounded-md text-base font-medium"
+                >
+                  Safety Guide
+                </a>
               </div>
             </div>
           )}
@@ -142,6 +156,7 @@ export default function App() {
         <Route path="/planner" component={ItineraryPlannerPage} />
         <Route path="/search" component={SearchPage} />
         <Route path="/stats" component={StatsPage} />
+        <Route path="/safety" component={SafetyPage} />
       </Switch>
 
       {/* Chatbot Widget - Appears on all pages */}
