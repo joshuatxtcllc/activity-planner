@@ -1,5 +1,6 @@
 import type { Event } from "../../shared/schema";
 import { useState } from "react";
+import ExternalLinkWarning from "./ExternalLinkWarning";
 
 interface EventCardProps {
   event: Event;
@@ -23,10 +24,8 @@ export default function EventCard({ event, onLike }: EventCardProps) {
 
   return (
     <div className="relative bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow overflow-hidden">
-      <a
+      <ExternalLinkWarning
         href={event.url}
-        target="_blank"
-        rel="noopener noreferrer"
         className="block"
       >
         {event.imageUrl && (
@@ -91,7 +90,7 @@ export default function EventCard({ event, onLike }: EventCardProps) {
             </div>
           </div>
         </div>
-      </a>
+      </ExternalLinkWarning>
 
       {/* Like/Dislike Buttons */}
       <div className="absolute top-2 right-2 flex gap-2 z-10">

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import AddActivityModal from '../components/AddActivityModal';
 import MyActivitiesSection from '../components/MyActivitiesSection';
+import ExternalLinkWarning from '../components/ExternalLinkWarning';
 
 interface VibeMode {
   id: string;
@@ -335,14 +336,12 @@ export default function CuratorPage() {
                 </div>
 
                 {activity.url && (
-                  <a
+                  <ExternalLinkWarning
                     href={activity.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
                     className="inline-block text-indigo-600 hover:text-indigo-800 font-medium text-sm"
                   >
                     Learn more →
-                  </a>
+                  </ExternalLinkWarning>
                 )}
               </div>
             ))}
