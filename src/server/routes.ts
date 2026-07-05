@@ -1,11 +1,13 @@
 import { Router } from "express";
 import { db } from "./db";
-import { events } from "../shared/schema";
-import { desc, and, gte, lte, eq } from "drizzle-orm";
+import { events, houstonActivities } from "../shared/schema";
+import { desc, and, gte, lte, eq, ilike, or } from "drizzle-orm";
 import { runAllScrapers } from "./scrapers";
 import logger from "./utils/logger";
 import { getNextFriday } from "./utils/date-utils";
 import { generateItinerary, type ItineraryPreferences } from "./services/itinerary-generator";
+import { generateRecommendations, getFallbackRecommendations, type RecommendationContext } from "./services/recommendation-engine";
+import { getHoustonWeather, getTimeOfDay, getSeason, getDayOfWeek } from "./services/weather-adapter";
 import curatorRoutes from "./routes/curator";
 import userActivitiesRoutes from "./routes/user-activities";
 import verifyUrlRoutes from "./routes/verify-url";
@@ -210,5 +212,101 @@ router.post("/itinerary/generate", async (req, res) => {
   }
 });
 
+
+/**
+ * GET /api/voice-search
+ * Combined search endpoint optimized for the voice assistant in Jay's Assistant.
+ * Returns curated activities + upcoming events in a single call.
+ *
+ * Query params:
+ *   q         - natural language hint (used for keyword matching)
+ *   vibe      - one of: high-energy, late-night, cheap-fun, date-night, tourist,
+ *               local-hidden-gems, artsy, foodie, nature-lover, chill
+ *   neighborhood - Houston neighborhood name
+ *   limit     - max results per category (default 8)
+ */
+router.get("/voice-search", async (req, res) => {
+  try {
+    const { q, vibe, neighborhood, limit = "8" } = req.query;
+    const maxResults = Math.min(parseInt(limit as string, 10) || 8, 20);
+
+    // ── Activities from the catalog ───────────────────────────────────────────
+    let activityResults: any[] = [];
+    try {
+      const weather = await getHoustonWeather();
+      const timeOfDay = getTimeOfDay();
+      const season = getSeason();
+      const dayOfWeek = getDayOfWeek();
+
+      if (weather) {
+        const prefs: Record<string, any> = {};
+        if (vibe) prefs.vibeMode = vibe;
+        if (neighborhood) prefs.neighborhood = neighborhood;
+
+        const context: RecommendationContext = {
+          preferences: prefs,
+          weather,
+          timeOfDay,
+          season,
+          dayOfWeek,
+        };
+
+        const recs = await generateRecommendations(context, maxResults, "voice-assistant");
+        activityResults = recs.length > 0 ? recs : await getFallbackRecommendations(timeOfDay, weather);
+      }
+    } catch (err) {
+      logger.warn("Activity recommendation failed in voice-search", { err });
+    }
+
+    // ── Keyword search across activity names/descriptions ────────────────────
+    let keywordActivities: any[] = [];
+    if (q) {
+      const keyword = `%${String(q).toLowerCase()}%`;
+      keywordActivities = await db
+        .select()
+        .from(houstonActivities)
+        .where(
+          and(
+            eq(houstonActivities.isActive, true),
+            or(
+              ilike(houstonActivities.name, keyword),
+              ilike(houstonActivities.description, keyword),
+              ilike(houstonActivities.category, keyword),
+              ilike(houstonActivities.neighborhood, keyword)
+            )
+          )
+        )
+        .limit(maxResults);
+    }
+
+    // ── Upcoming scraped events ───────────────────────────────────────────────
+    const upcomingEvents = await db
+      .select()
+      .from(events)
+      .where(gte(events.startDate, new Date()))
+      .orderBy(events.startDate)
+      .limit(maxResults);
+
+    res.json({
+      activities: activityResults.map((r: any) => ({
+        ...(r.activity ?? r),
+        reasoning: r.reasoning,
+        score: r.score,
+      })),
+      keywordMatches: keywordActivities,
+      upcomingEvents,
+      meta: {
+        vibe: vibe ?? null,
+        neighborhood: neighborhood ?? null,
+        query: q ?? null,
+        activityCount: activityResults.length,
+        eventCount: upcomingEvents.length,
+      },
+    });
+  } catch (error) {
+    logger.error("Failed voice-search", { error });
+    res.status(500).json({ error: "Voice search failed" });
+  }
+});
 
 export default router;
