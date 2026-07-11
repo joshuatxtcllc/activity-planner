@@ -162,6 +162,39 @@ CREATE TABLE IF NOT EXISTS "curator_conversations" (
 -- Create indexes for curator_conversations
 CREATE INDEX IF NOT EXISTS "idx_curator_conv_session" ON "curator_conversations" ("session_id");
 CREATE INDEX IF NOT EXISTS "idx_curator_conv_state" ON "curator_conversations" ("conversation_state");
+
+-- Create user_submitted_activities table for user-created activities
+CREATE TABLE IF NOT EXISTS "user_submitted_activities" (
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "session_id" text NOT NULL,
+  "name" text NOT NULL,
+  "description" text,
+  "type" text,
+  "category" text,
+  "vibes" text[],
+  "neighborhood" text,
+  "address" text,
+  "lat" text,
+  "lng" text,
+  "best_time_of_day" text[],
+  "best_season" text[],
+  "typical_duration" integer,
+  "indoor_outdoor" text,
+  "weather_dependent" boolean DEFAULT false,
+  "price_level" integer,
+  "estimated_cost" integer,
+  "social_setting" text[],
+  "energy_level" text,
+  "url" text,
+  "image_url" text,
+  "use_in_recommendations" boolean DEFAULT true,
+  "times_recommended" integer DEFAULT 0,
+  "created_at" timestamp DEFAULT now() NOT NULL,
+  "updated_at" timestamp DEFAULT now() NOT NULL
+);
+
+-- Create index for user_submitted_activities
+CREATE INDEX IF NOT EXISTS "idx_user_submitted_activities_session" ON "user_submitted_activities" ("session_id");
 `;
 
 /**
