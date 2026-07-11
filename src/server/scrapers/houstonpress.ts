@@ -5,208 +5,142 @@ import type { NewEvent } from "../../shared/schema";
 import { generateEventHash } from "../utils/deduplication";
 
 /**
- * Scrapes events from Houston Press - Local news and events publication
- * Houston Press has a comprehensive events calendar for the Houston area
+ * Scrapes events from Houston Press's community events calendar
+ * (community.houstonpress.com uses a Foundation/UIKit events widget)
  */
 export async function scrapeHoustonPress(): Promise<NewEvent[]> {
   try {
     logger.info("Starting Houston Press scraper for Houston events");
-
     const events: NewEvent[] = [];
 
-    // Get events from Houston Press calendar
-    // Note: Houston Press moved their events calendar to a subdomain
     const response = await axios.get("https://community.houstonpress.com/houston/EventSearch", {
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       },
       timeout: 15000,
     });
 
     const $ = cheerio.load(response.data);
 
-    // Houston Press uses event cards
-    $("article[class*='event'], .event-card, .calendar-event, [data-event]").each((_, element) => {
+    $("li.fdn-pres-item").each((_, element) => {
       try {
         const $el = $(element);
 
-        // Extract title
-        const title =
-          $el.find("h2, h3, .event-title, [class*='title']").first().text().trim() ||
-          $el.find("a[class*='title']").first().text().trim();
+        const titleLink = $el.find(".fdn-teaser-headline a").first();
+        const title = titleLink.text().trim();
+        if (!title) return;
 
-        if (!title || title.length < 3) return;
+        const href = titleLink.attr("href") || "";
+        const url = href.startsWith("http") ? href : `https://community.houstonpress.com${href}`;
 
-        // Extract URL
-        const urlPath =
-          $el.find("a[href*='/events/']").first().attr("href") || $el.find("a").first().attr("href");
-        if (!urlPath) return;
-        const url = urlPath.startsWith("http")
-          ? urlPath
-          : `https://www.houstonpress.com${urlPath}`;
-
-        // Extract date
-        const dateText =
-          $el.find("time, .date, [class*='date']").first().text().trim() ||
-          $el.find("time").first().attr("datetime") ||
-          "";
-
-        let startDate = parseHoustonPressDate(dateText);
+        const dateText = $el.find(".fdn-teaser-subheadline").first().text().trim();
+        const startDate = parseHoustonPressDate(dateText);
         if (!startDate) return;
 
-        // Extract venue
-        const venue =
-          $el.find(".venue, [class*='venue']").first().text().trim() ||
-          $el.find("address").first().text().trim();
-        const location = venue ? `${venue}, Houston, TX` : "Houston, TX";
+        const venue = $el.find(".fdn-event-teaser-location-link").first().text().trim() || "Houston, TX";
+        const address = $el
+          .find(".fdn-event-teaser-location-link")
+          .first()
+          .parent()
+          .find("span")
+          .first()
+          .text()
+          .trim();
 
-        // Extract image
-        const imageUrl =
-          $el.find("img").first().attr("src") ||
-          $el.find("img").first().attr("data-src") ||
-          $el.find("[style*='background-image']").first().attr("style")?.match(/url\(['"]?([^'"]+)['"]?\)/)?.[1];
+        const description = $el.find(".fdn-teaser-description").first().text().trim();
 
-        const fullImageUrl =
-          imageUrl && imageUrl.startsWith("http")
-            ? imageUrl
-            : imageUrl
-            ? `https://www.houstonpress.com${imageUrl}`
-            : undefined;
+        const tags = $el
+          .find(".fdn-teaser-tag-link")
+          .map((_i, t) => $(t).text().trim())
+          .get();
+        const category = mapCategory(tags.join(" "));
 
-        // Extract description
-        const description =
-          $el.find(".description, [class*='description'], p").first().text().trim() ||
-          $el.find(".excerpt").first().text().trim();
+        const imageUrl = $el.find(".fdn-event-search-image-block img").first().attr("src") || undefined;
 
-        // Extract category
-        const categoryText =
-          $el.find(".category, [class*='category'], .tag").first().text().trim().toLowerCase() ||
-          $el.find("a[href*='/category/']").first().text().trim().toLowerCase();
-        const category = mapCategory(categoryText);
-
-        // Check if free
-        const priceText = $el.text().toLowerCase();
-        const isFree = priceText.includes("free admission") || priceText.includes("free event");
+        const location = "Houston, TX";
 
         const newEvent: NewEvent = {
           title,
           description: description || undefined,
           startDate,
           location,
-          venue: venue || undefined,
+          venue,
+          address: address || undefined,
           url,
-          imageUrl: fullImageUrl,
+          imageUrl,
           source: "houstonpress",
           category,
-          isFree,
           uniqueKey: generateEventHash(title, startDate, location),
         };
 
         events.push(newEvent);
       } catch (error) {
-        logger.debug("Error parsing Houston Press event", { error });
+        logger.debug("Failed to parse Houston Press event item", { error });
       }
     });
 
-    logger.info(`Successfully scraped ${events.length} Houston Press events`);
+    logger.info(`Successfully parsed ${events.length} Houston Press events`);
     return events;
   } catch (error) {
-    logger.error("Failed to scrape Houston Press", {
-      error: error instanceof Error ? error.message : String(error),
-      errorDetails: error,
-    });
+    logger.error("Failed to scrape Houston Press", { error });
     return [];
   }
 }
 
 /**
- * Parse Houston Press date formats
+ * Parse Houston Press date text like "Fri., July 10, 9 a.m.-3 p.m.", "Sat., July 11",
+ * "Today, 7 p.m.", or "Tomorrow"
  */
 function parseHoustonPressDate(dateText: string): Date | null {
   try {
     if (!dateText) return null;
 
-    // Try parsing ISO format first (from datetime attribute)
-    const isoDate = new Date(dateText);
-    if (!isNaN(isoDate.getTime())) {
-      return isoDate;
-    }
-
+    const lower = dateText.toLowerCase();
     const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    // Handle "Today", "Tonight", "Tomorrow"
-    const lowerText = dateText.toLowerCase();
-
-    if (lowerText.includes("today") || lowerText.includes("tonight")) {
-      const timeMatch = dateText.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    const timeMatch = dateText.match(/(\d{1,2})(?::(\d{2}))?\s*([ap])\.?\s?m\.?/i);
+    const applyTime = (date: Date) => {
       if (timeMatch) {
-        const date = new Date(today);
         const hours = parseInt(timeMatch[1]);
-        const minutes = parseInt(timeMatch[2]);
-        const isPM = timeMatch[3].toLowerCase() === "pm";
+        const minutes = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
+        const isPM = timeMatch[3].toLowerCase() === "p";
         const hour24 = isPM && hours !== 12 ? hours + 12 : !isPM && hours === 12 ? 0 : hours;
         date.setHours(hour24, minutes, 0, 0);
-        return date;
+      } else {
+        date.setHours(9, 0, 0, 0);
       }
-      return today;
+      return date;
+    };
+
+    if (lower.includes("today") || lower.includes("tonight")) {
+      return applyTime(new Date(now.getFullYear(), now.getMonth(), now.getDate()));
     }
 
-    if (lowerText.includes("tomorrow")) {
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const timeMatch = dateText.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-      if (timeMatch) {
-        const hours = parseInt(timeMatch[1]);
-        const minutes = parseInt(timeMatch[2]);
-        const isPM = timeMatch[3].toLowerCase() === "pm";
-        const hour24 = isPM && hours !== 12 ? hours + 12 : !isPM && hours === 12 ? 0 : hours;
-        tomorrow.setHours(hour24, minutes, 0, 0);
-        return tomorrow;
-      }
-      return tomorrow;
+    if (lower.includes("tomorrow")) {
+      return applyTime(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
     }
 
-    // Try parsing common date formats
-    // "December 6, 2025", "Dec 6, 2025", "12/6/2025"
     const monthNames = [
-      "january",
-      "february",
-      "march",
-      "april",
-      "may",
-      "june",
-      "july",
-      "august",
-      "september",
-      "october",
-      "november",
-      "december",
+      "january", "february", "march", "april", "may", "june",
+      "july", "august", "september", "october", "november", "december",
     ];
 
     for (let i = 0; i < monthNames.length; i++) {
-      if (lowerText.includes(monthNames[i]) || lowerText.includes(monthNames[i].substring(0, 3))) {
-        // Try to extract day and year
-        const dayMatch = dateText.match(/(\d{1,2})/);
-        const yearMatch = dateText.match(/(\d{4})/);
+      const month = monthNames[i];
+      if (lower.includes(month) || lower.includes(month.substring(0, 3) + ".") || lower.includes(month.substring(0, 3))) {
+        const dayMatch = dateText.match(/\b(\d{1,2})\b/);
+        if (!dayMatch) continue;
+        const day = parseInt(dayMatch[1]);
+        let year = now.getFullYear();
+        let date = new Date(year, i, day);
 
-        if (dayMatch) {
-          const day = parseInt(dayMatch[1]);
-          const year = yearMatch ? parseInt(yearMatch[1]) : now.getFullYear();
-          const date = new Date(year, i, day);
-
-          // Try to extract time
-          const timeMatch = dateText.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-          if (timeMatch) {
-            const hours = parseInt(timeMatch[1]);
-            const minutes = parseInt(timeMatch[2]);
-            const isPM = timeMatch[3].toLowerCase() === "pm";
-            const hour24 = isPM && hours !== 12 ? hours + 12 : !isPM && hours === 12 ? 0 : hours;
-            date.setHours(hour24, minutes, 0, 0);
-          }
-
-          return date;
+        if (date.getTime() < now.getTime() - 60 * 24 * 60 * 60 * 1000) {
+          date = new Date(year + 1, i, day);
         }
+
+        return applyTime(date);
       }
     }
 
@@ -218,16 +152,14 @@ function parseHoustonPressDate(dateText: string): Date | null {
 }
 
 /**
- * Map Houston Press categories to our standard categories
+ * Map Houston Press tags/categories to our standard categories
  */
 function mapCategory(categoryText: string): string | undefined {
   const lower = categoryText.toLowerCase();
 
   if (lower.includes("music") || lower.includes("concert") || lower.includes("band")) return "music";
-  if (lower.includes("food") || lower.includes("dining") || lower.includes("restaurant"))
-    return "food";
-  if (lower.includes("art") || lower.includes("gallery") || lower.includes("exhibit"))
-    return "arts";
+  if (lower.includes("food") || lower.includes("dining") || lower.includes("restaurant")) return "food";
+  if (lower.includes("art") || lower.includes("gallery") || lower.includes("exhibit")) return "arts";
   if (lower.includes("sport") || lower.includes("game")) return "sports";
   if (
     lower.includes("comedy") ||
@@ -237,10 +169,8 @@ function mapCategory(categoryText: string): string | undefined {
   )
     return "arts";
   if (lower.includes("festival") || lower.includes("fair")) return "festival";
-  if (lower.includes("family") || lower.includes("kids") || lower.includes("children"))
-    return "family";
-  if (lower.includes("nightlife") || lower.includes("bar") || lower.includes("club"))
-    return "nightlife";
+  if (lower.includes("family") || lower.includes("kids") || lower.includes("children")) return "family";
+  if (lower.includes("nightlife") || lower.includes("bar") || lower.includes("club")) return "nightlife";
 
   return undefined;
 }
