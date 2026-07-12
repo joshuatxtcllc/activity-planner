@@ -81,7 +81,7 @@ export class DataAgent extends AgentBase {
     const [upcomingEventsCount] = await db
       .select({ count: count() })
       .from(events)
-      .where(sql`${events.date} >= CURRENT_DATE`);
+      .where(sql`${events.startDate} >= CURRENT_DATE`);
 
     const response = `📊 **Site Statistics**\n\n` +
       `• **Houston Activities**: ${activitiesCount.count} curated activities\n` +

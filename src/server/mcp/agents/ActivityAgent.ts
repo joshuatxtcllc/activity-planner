@@ -1,7 +1,9 @@
 import { AgentBase } from '../AgentBase.js';
 import { AgentCapability, AgentContext, AgentResponse } from '../types.js';
-import { generateRecommendations } from '../../services/recommendation-engine.js';
+import { generateRecommendations, getFallbackRecommendations, RecommendationContext } from '../../services/recommendation-engine.js';
 import { parseUserInput } from '../../services/preference-parser.js';
+import { getHoustonWeather, getTimeOfDay, getSeason } from '../../services/weather-adapter.js';
+import { formatRecommendations } from '../../services/curator-prompts.js';
 import { getDb } from '../../db.js';
 import { houstonActivities, events, userSubmittedActivities } from '../../../shared/schema.js';
 import { eq, or, like, sql } from 'drizzle-orm';
@@ -133,8 +135,8 @@ export class ActivityAgent extends AgentBase {
     const upcomingEvents = await db
       .select()
       .from(events)
-      .where(sql`${events.date} >= CURRENT_DATE`)
-      .orderBy(events.date)
+      .where(sql`${events.startDate} >= CURRENT_DATE`)
+      .orderBy(events.startDate)
       .limit(5);
 
     if (upcomingEvents.length === 0) {
@@ -145,7 +147,7 @@ export class ActivityAgent extends AgentBase {
 
     const response = `Here are the upcoming events in Houston:\n\n` +
       upcomingEvents.map((e, i) =>
-        `${i + 1}. **${e.title}**\n   Date: ${new Date(e.date).toLocaleDateString()}\n   ${e.description || 'No description available'}`
+        `${i + 1}. **${e.title}**\n   Date: ${new Date(e.startDate).toLocaleDateString()}\n   ${e.description || 'No description available'}`
       ).join('\n\n');
 
     return this.createResponse(response);
@@ -153,15 +155,37 @@ export class ActivityAgent extends AgentBase {
 
   private async recommendActivities(message: string, context: AgentContext): Promise<AgentResponse> {
     // Use the existing preference parser
-    const preferences = await parseUserInput(message, context.sessionId);
+    const preferences = parseUserInput(message);
+
+    const weather = await getHoustonWeather();
+    const recommendationContext: RecommendationContext = {
+      preferences,
+      weather: weather ?? {
+        temperature: 75,
+        condition: 'sunny',
+        description: 'Weather data unavailable',
+        humidity: 50,
+        windSpeed: 5,
+        feelsLike: 75,
+      },
+      timeOfDay: getTimeOfDay(),
+      season: getSeason(),
+      dayOfWeek: new Date().toLocaleDateString('en-US', { weekday: 'long' }),
+    };
 
     // Generate recommendations using the existing engine
-    const recommendations = await generateRecommendations(
-      preferences,
-      context.sessionId,
-      new Date(),
-      'clear' // default weather
+    let recommendations = await generateRecommendations(
+      recommendationContext,
+      5,
+      context.sessionId
     );
+
+    if (recommendations.length === 0) {
+      recommendations = await getFallbackRecommendations(
+        recommendationContext.timeOfDay,
+        recommendationContext.weather
+      );
+    }
 
     if (recommendations.length === 0) {
       return this.createResponse(
@@ -169,11 +193,6 @@ export class ActivityAgent extends AgentBase {
       );
     }
 
-    const response = `Based on your preferences, here are my top recommendations:\n\n` +
-      recommendations.slice(0, 5).map((r, i) =>
-        `${i + 1}. **${r.name}** - ${r.neighborhood}\n   ${r.description}\n   Match Score: ${Math.round(r.score * 100)}%`
-      ).join('\n\n');
-
-    return this.createResponse(response);
+    return this.createResponse(formatRecommendations(recommendations, recommendationContext));
   }
 }
