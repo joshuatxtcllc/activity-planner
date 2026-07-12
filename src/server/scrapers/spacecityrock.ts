@@ -4,6 +4,13 @@ import logger from "../utils/logger";
 import type { NewEvent } from "../../shared/schema";
 import { generateEventHash } from "../utils/deduplication";
 
+const BROWSER_HEADERS = {
+  "User-Agent":
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+  "Accept-Language": "en-US,en;q=0.9",
+};
+
 /**
  * Scrapes events from Space City Rock - Houston's indie music scene
  * Space City Rock is the go-to source for local and indie music shows in Houston
@@ -16,9 +23,7 @@ export async function scrapeSpaceCityRock(): Promise<NewEvent[]> {
 
     // Get events from Space City Rock shows calendar
     const response = await axios.get("https://www.spacecityrock.com/shows-2/", {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-      },
+      headers: BROWSER_HEADERS,
       timeout: 15000,
     });
 

@@ -12,8 +12,10 @@ import { scrapeSpaceCityRock } from "./spacecityrock";
 import { scrapePerplexity } from "./perplexity";
 import { scrapeReddit } from "./reddit";
 import { scrapeMeetup } from "./meetup";
-import { generateRecurringActivities } from "./recurring-activities";
 import { scrapeTripAdvisor } from "./tripadvisor";
+import { scrapeHoustonZoo } from "./houstonzoo";
+import { scrapeNrgPark } from "./nrgpark";
+import { scrapeEventCartel } from "./eventcartel";
 import { eq } from "drizzle-orm";
 
 /**
@@ -41,8 +43,9 @@ export async function runAllScrapers(): Promise<{
       perplexityEvents,
       redditEvents,
       meetupEvents,
-      recurringActivities,
       tripadvisorEvents,
+    houstonZooEvents,
+    nrgParkEvents,
     ] = await Promise.all([
       scrapeTicketmaster().catch(err => {
         logger.error("Ticketmaster scraper failed", { error: err });
@@ -84,14 +87,18 @@ export async function runAllScrapers(): Promise<{
         logger.error("Meetup scraper failed", { error: err });
         return [];
       }),
-      generateRecurringActivities().catch(err => {
-        logger.error("Recurring activities generator failed", { error: err });
-        return [];
-      }),
       scrapeTripAdvisor().catch(err => {
         logger.error("TripAdvisor scraper failed", { error: err });
         return [];
       }),
+    scrapeHoustonZoo().catch(err => {
+      logger.error("Houston Zoo scraper failed", { error: err });
+      return [];
+    }),
+    scrapeNrgPark().catch(err => {
+      logger.error("NRG Park scraper failed", { error: err });
+      return [];
+    }),
     ]);
 
     // Log results per source
@@ -106,8 +113,9 @@ export async function runAllScrapers(): Promise<{
       Perplexity AI: ${perplexityEvents.length}
       Reddit: ${redditEvents.length}
       Meetup: ${meetupEvents.length}
-      Recurring Activities: ${recurringActivities.length}
       TripAdvisor: ${tripadvisorEvents.length}
+    Houston Zoo: ${houstonZooEvents.length}
+    NRG Park: ${nrgParkEvents.length}
     `);
 
     // Combine all events
@@ -122,8 +130,9 @@ export async function runAllScrapers(): Promise<{
       ...perplexityEvents,
       ...redditEvents,
       ...meetupEvents,
-      ...recurringActivities,
       ...tripadvisorEvents,
+    ...houstonZooEvents,
+    ...nrgParkEvents,
     ];
 
     logger.info(`Total events scraped: ${allEvents.length}`);
@@ -216,8 +225,9 @@ export async function runAllScrapers(): Promise<{
       perplexity: perplexityEvents.length,
       reddit: redditEvents.length,
       meetup: meetupEvents.length,
-      recurring: recurringActivities.length,
       tripadvisor: tripadvisorEvents.length,
+    houstonzoo: houstonZooEvents.length,
+    nrgpark: nrgParkEvents.length,
     };
 
     return {
