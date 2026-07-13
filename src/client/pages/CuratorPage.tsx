@@ -31,6 +31,10 @@ interface ConversationResponse {
   needsMoreInfo?: boolean;
   question?: string;
   recommendations?: Activity[];
+  // The neighborhood branch of /api/curator/quick-recommend returns
+  // activities (plain HoustonActivity rows) instead of recommendations
+  // (activity + reasoning + score) since it doesn't run the scoring engine.
+  activities?: Activity[];
   vibeModes?: string;
   context?: {
     weather: {
@@ -157,9 +161,7 @@ export default function CuratorPage() {
         { role: 'assistant', content: data.message },
       ]);
 
-      if (data.recommendations) {
-        setRecommendations(data.recommendations);
-      }
+      setRecommendations(data.recommendations ?? data.activities ?? []);
     },
   });
 
