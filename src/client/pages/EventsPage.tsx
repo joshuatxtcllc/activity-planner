@@ -31,6 +31,22 @@ export default function EventsPage() {
     },
   });
 
+  const likeMutation = useMutation({
+    mutationFn: async ({ eventId, liked }: { eventId: string; liked: boolean | null }) => {
+      const response = await fetch("/api/preferences", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId, liked }),
+      });
+      if (!response.ok) throw new Error("Failed to save preference");
+      return response.json();
+    },
+  });
+
+  const handleLike = (eventId: string, liked: boolean | null) => {
+    likeMutation.mutate({ eventId, liked });
+  };
+
   if (isLoading) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -100,7 +116,7 @@ export default function EventsPage() {
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {dateEvents.map((event) => (
-                  <EventCard key={event.id} event={event} />
+                  <EventCard key={event.id} event={event} onLike={handleLike} />
                 ))}
               </div>
             </div>

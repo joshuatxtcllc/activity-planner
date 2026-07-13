@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "../db";
 import { events, userPreferences, userProfiles } from "../../shared/schema";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import logger from "../utils/logger";
 import { randomUUID } from "crypto";
 
@@ -133,11 +133,7 @@ async function updateUserProfile(sessionId: string) {
     const likedEvents = await db
       .select()
       .from(events)
-      .where(
-        and(
-          ...likedEventIds.map((id: string) => eq(events.id, id))
-        )
-      );
+      .where(inArray(events.id, likedEventIds));
 
     // Extract preferred categories and sources
     const categoryCount: Record<string, number> = {};

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import AddActivityModal from './AddActivityModal';
 
 interface UserActivity {
   id: string;
@@ -8,9 +9,15 @@ interface UserActivity {
   type?: string;
   category?: string;
   neighborhood?: string;
+  address?: string;
   energyLevel?: string;
   priceLevel?: number;
   indoorOutdoor?: string;
+  bestTimeOfDay?: string[];
+  bestSeason?: string[];
+  socialSetting?: string[];
+  url?: string;
+  weatherDependent?: boolean;
   useInRecommendations: boolean;
   timesRecommended: number;
   createdAt: string;
@@ -18,6 +25,7 @@ interface UserActivity {
 
 export default function MyActivitiesSection() {
   const queryClient = useQueryClient();
+  const [editingActivity, setEditingActivity] = useState<UserActivity | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const { data: activities = [], isLoading } = useQuery<UserActivity[]>({
@@ -161,6 +169,14 @@ export default function MyActivitiesSection() {
                 </button>
 
                 <button
+                  onClick={() => setEditingActivity(activity)}
+                  className="text-gray-500 hover:text-gray-700 text-sm px-2"
+                  title="Edit activity"
+                >
+                  ✏️
+                </button>
+
+                <button
                   onClick={() => {
                     if (window.confirm(`Delete "${activity.name}"?`)) {
                       deleteActivityMutation.mutate(activity.id);
@@ -183,6 +199,12 @@ export default function MyActivitiesSection() {
           An error occurred. Please try again.
         </div>
       )}
+
+      <AddActivityModal
+        isOpen={!!editingActivity}
+        onClose={() => setEditingActivity(null)}
+        editingActivity={editingActivity}
+      />
     </div>
   );
 }

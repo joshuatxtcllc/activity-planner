@@ -1,9 +1,29 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+
+export interface EditableActivity {
+  id: string;
+  name: string;
+  description?: string | null;
+  type?: string | null;
+  category?: string | null;
+  neighborhood?: string | null;
+  address?: string | null;
+  energyLevel?: string | null;
+  priceLevel?: number | null;
+  indoorOutdoor?: string | null;
+  bestTimeOfDay?: string[] | null;
+  bestSeason?: string[] | null;
+  socialSetting?: string[] | null;
+  url?: string | null;
+  weatherDependent?: boolean | null;
+  useInRecommendations: boolean;
+}
 
 interface AddActivityModalProps {
   isOpen: boolean;
   onClose: () => void;
+  editingActivity?: EditableActivity | null;
 }
 
 const ENERGY_LEVELS = ['low', 'medium', 'high'];
@@ -20,37 +40,68 @@ const TIMES_OF_DAY = ['morning', 'afternoon', 'evening', 'night', 'late-night'];
 const SEASONS = ['spring', 'summer', 'fall', 'winter', 'all'];
 const SOCIAL_SETTINGS = ['solo', 'couple', 'small-group', 'large-group'];
 
-export default function AddActivityModal({ isOpen, onClose }: AddActivityModalProps) {
+const emptyFormData = {
+  name: '',
+  description: '',
+  type: '',
+  category: '',
+  neighborhood: '',
+  address: '',
+  energyLevel: 'medium',
+  priceLevel: 2,
+  indoorOutdoor: 'both',
+  bestTimeOfDay: [] as string[],
+  bestSeason: ['all'] as string[],
+  socialSetting: [] as string[],
+  url: '',
+  weatherDependent: false,
+  useInRecommendations: true,
+};
+
+function formDataFromActivity(activity: EditableActivity): typeof emptyFormData {
+  return {
+    name: activity.name,
+    description: activity.description ?? '',
+    type: activity.type ?? '',
+    category: activity.category ?? '',
+    neighborhood: activity.neighborhood ?? '',
+    address: activity.address ?? '',
+    energyLevel: activity.energyLevel ?? 'medium',
+    priceLevel: activity.priceLevel ?? 2,
+    indoorOutdoor: activity.indoorOutdoor ?? 'both',
+    bestTimeOfDay: activity.bestTimeOfDay ?? [],
+    bestSeason: activity.bestSeason ?? ['all'],
+    socialSetting: activity.socialSetting ?? [],
+    url: activity.url ?? '',
+    weatherDependent: activity.weatherDependent ?? false,
+    useInRecommendations: activity.useInRecommendations,
+  };
+}
+
+export default function AddActivityModal({ isOpen, onClose, editingActivity }: AddActivityModalProps) {
   const queryClient = useQueryClient();
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    type: '',
-    category: '',
-    neighborhood: '',
-    address: '',
-    energyLevel: 'medium',
-    priceLevel: 2,
-    indoorOutdoor: 'both',
-    bestTimeOfDay: [] as string[],
-    bestSeason: ['all'] as string[],
-    socialSetting: [] as string[],
-    url: '',
-    weatherDependent: false,
-    useInRecommendations: true,
-  });
+  const isEditing = !!editingActivity;
+  const [formData, setFormData] = useState(emptyFormData);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setFormData(editingActivity ? formDataFromActivity(editingActivity) : emptyFormData);
+  }, [isOpen, editingActivity]);
 
   const addActivityMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const response = await fetch('/api/user-activities', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
+      const response = await fetch(
+        isEditing ? `/api/user-activities/${editingActivity!.id}` : '/api/user-activities',
+        {
+          method: isEditing ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        }
+      );
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Failed to add activity');
+        throw new Error(error.error || `Failed to ${isEditing ? 'update' : 'add'} activity`);
       }
 
       return response.json();
@@ -63,23 +114,7 @@ export default function AddActivityModal({ isOpen, onClose }: AddActivityModalPr
   });
 
   const resetForm = () => {
-    setFormData({
-      name: '',
-      description: '',
-      type: '',
-      category: '',
-      neighborhood: '',
-      address: '',
-      energyLevel: 'medium',
-      priceLevel: 2,
-      indoorOutdoor: 'both',
-      bestTimeOfDay: [],
-      bestSeason: ['all'],
-      socialSetting: [],
-      url: '',
-      weatherDependent: false,
-      useInRecommendations: true,
-    });
+    setFormData(emptyFormData);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -99,7 +134,7 @@ export default function AddActivityModal({ isOpen, onClose }: AddActivityModalPr
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-gray-900">Add Your Activity</h2>
+          <h2 className="text-2xl font-bold text-gray-900">{isEditing ? 'Edit Your Activity' : 'Add Your Activity'}</h2>
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700 text-2xl"
@@ -360,7 +395,9 @@ export default function AddActivityModal({ isOpen, onClose }: AddActivityModalPr
               disabled={addActivityMutation.isPending || !formData.name}
               className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
-              {addActivityMutation.isPending ? 'Adding...' : 'Add Activity'}
+              {addActivityMutation.isPending
+                ? (isEditing ? 'Saving...' : 'Adding...')
+                : (isEditing ? 'Save Changes' : 'Add Activity')}
             </button>
           </div>
         </form>

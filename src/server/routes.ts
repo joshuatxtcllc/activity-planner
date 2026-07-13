@@ -11,6 +11,7 @@ import { getHoustonWeather, getTimeOfDay, getSeason, getDayOfWeek } from "./serv
 import curatorRoutes from "./routes/curator";
 import userActivitiesRoutes from "./routes/user-activities";
 import verifyUrlRoutes from "./routes/verify-url";
+import preferencesRoutes from "./routes/preferences";
 
 const router = Router();
 
@@ -22,6 +23,9 @@ router.use("/user-activities", userActivitiesRoutes);
 
 // Mount URL verification routes
 router.use("/verify-url", verifyUrlRoutes);
+
+// Mount preference tracking routes (event like/dislike)
+router.use("/preferences", preferencesRoutes);
 
 /**
  * GET /api/events
