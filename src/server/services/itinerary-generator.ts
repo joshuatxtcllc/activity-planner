@@ -1,5 +1,48 @@
-import axios from "axios";
+import Anthropic from "@anthropic-ai/sdk";
 import logger from "../utils/logger";
+
+const ITINERARY_JSON_SCHEMA = {
+  type: "object",
+  properties: {
+    title: { type: "string" },
+    description: { type: "string" },
+    totalEstimatedCost: { type: "string" },
+    totalDuration: { type: "string" },
+    activities: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          order: { type: "integer" },
+          time: { type: "string" },
+          title: { type: "string" },
+          description: { type: "string" },
+          venue: { type: "string" },
+          address: { type: "string" },
+          category: { type: "string" },
+          estimatedCost: { type: "string" },
+          estimatedDuration: { type: "string" },
+          tips: { type: "string" },
+        },
+        required: [
+          "order",
+          "time",
+          "title",
+          "description",
+          "venue",
+          "address",
+          "category",
+          "estimatedCost",
+          "estimatedDuration",
+        ],
+        additionalProperties: false,
+      },
+    },
+    transportationTips: { type: "string" },
+  },
+  required: ["title", "description", "totalEstimatedCost", "totalDuration", "activities"],
+  additionalProperties: false,
+} as const;
 
 export interface ItineraryPreferences {
   date: string; // ISO date string
@@ -34,95 +77,91 @@ export interface GeneratedItinerary {
   transportationTips?: string;
 }
 
+const SYSTEM_PROMPT = `You are a Houston local expert and activity planner. You create personalized, geographically-smart itineraries that:
+- Suggest activities in logical sequence (e.g., dinner before a show, not after)
+- Keep venues close together (within 2-3 miles when possible)
+- Consider timing and opening hours
+- Match the user's budget and interests
+- Provide specific, real Houston venues with addresses. Use web search to confirm venues are currently open and accurate.`;
+
 /**
- * Generate a personalized Houston itinerary using Perplexity AI
+ * Generate a personalized Houston itinerary using Claude
  */
 export async function generateItinerary(
   preferences: ItineraryPreferences
 ): Promise<GeneratedItinerary> {
-  const apiKey = process.env.PERPLEXITY_API_KEY?.trim().replace(/^['"]|['"]$/g, "");
+  const apiKey = process.env.ANTHROPIC_API_KEY;
 
   if (!apiKey) {
-    throw new Error("Perplexity API key not configured");
+    throw new Error("Anthropic API key not configured");
   }
+
+  const client = new Anthropic({ apiKey });
 
   try {
     logger.info("Generating Houston itinerary", { preferences });
 
     const prompt = buildItineraryPrompt(preferences);
+    const messages: Anthropic.Beta.BetaMessageParam[] = [
+      { role: "user", content: prompt },
+    ];
 
-    const response = await axios.post(
-      "https://api.perplexity.ai/chat/completions",
-      {
-        model: "sonar", // Standard online model for real-time search
-        messages: [
-          {
-            role: "system",
-            content: `You are a Houston local expert and activity planner. You create personalized, geographically-smart itineraries that:
-- Suggest activities in logical sequence (e.g., dinner before a show, not after)
-- Keep venues close together (within 2-3 miles when possible)
-- Consider timing and opening hours
-- Match the user's budget and interests
-- Provide specific, real Houston venues with addresses
+    let response = await client.beta.messages.create({
+      model: "claude-opus-4-8",
+      max_tokens: 8000,
+      system: SYSTEM_PROMPT,
+      messages,
+      tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 5 }],
+      output_config: { format: { type: "json_schema", schema: ITINERARY_JSON_SCHEMA } },
+    });
 
-Always respond with ONLY valid JSON, no markdown formatting or extra text.`
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        temperature: 0.7, // Higher creativity for varied suggestions
-        max_tokens: 3000,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    const content = response.data.choices[0]?.message?.content;
-    if (!content) {
-      throw new Error("No response from Perplexity AI");
+    // Server-side tool loop may pause after its internal iteration cap; resume until it doesn't.
+    while (response.stop_reason === "pause_turn") {
+      messages.push({ role: "assistant", content: response.content });
+      response = await client.beta.messages.create({
+        model: "claude-opus-4-8",
+        max_tokens: 8000,
+        system: SYSTEM_PROMPT,
+        messages,
+        tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 5 }],
+        output_config: { format: { type: "json_schema", schema: ITINERARY_JSON_SCHEMA } },
+      });
     }
 
-    // Parse the JSON response
+    if (response.stop_reason === "refusal") {
+      throw new Error("AI declined to generate this itinerary. Please try adjusting your preferences.");
+    }
+
+    const textBlock = response.content.find((block) => block.type === "text");
+    if (!textBlock || textBlock.type !== "text") {
+      throw new Error("No response from Claude");
+    }
+
     let itinerary: GeneratedItinerary;
     try {
-      // Remove markdown code blocks if present
-      const cleanContent = content
-        .replace(/```json\n?/g, "")
-        .replace(/```\n?/g, "")
-        .trim();
-      itinerary = JSON.parse(cleanContent);
-
-      // Generate a unique ID for this itinerary
+      itinerary = JSON.parse(textBlock.text);
       itinerary.id = `itinerary-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
     } catch (parseError) {
-      logger.error("Failed to parse Perplexity AI response", {
+      logger.error("Failed to parse Claude response", {
         error: parseError,
-        content: content.substring(0, 500)
+        content: textBlock.text.substring(0, 500),
       });
       throw new Error("Failed to parse AI response. Please try again.");
     }
 
     logger.info("Successfully generated itinerary", {
       itineraryId: itinerary.id,
-      activityCount: itinerary.activities.length
+      activityCount: itinerary.activities.length,
     });
 
     return itinerary;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      logger.error("Perplexity API error", {
-        status: error.response?.status,
-        data: error.response?.data,
-        message: error.message
+    if (error instanceof Anthropic.APIError) {
+      logger.error("Anthropic API error", {
+        status: error.status,
+        message: error.message,
       });
-      throw new Error(`AI service error: ${error.response?.data?.error?.message || error.message}`);
+      throw new Error(`AI service error: ${error.message}`);
     }
     throw error;
   }

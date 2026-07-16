@@ -12,6 +12,7 @@ import curatorRoutes from "./routes/curator";
 import userActivitiesRoutes from "./routes/user-activities";
 import verifyUrlRoutes from "./routes/verify-url";
 import preferencesRoutes from "./routes/preferences";
+import searchRoutes from "./routes/search";
 
 const router = Router();
 
@@ -26,6 +27,9 @@ router.use("/verify-url", verifyUrlRoutes);
 
 // Mount preference tracking routes (event like/dislike)
 router.use("/preferences", preferencesRoutes);
+
+// Mount internal search routes (real events + curated activities)
+router.use("/search", searchRoutes);
 
 /**
  * GET /api/events
