@@ -107,7 +107,7 @@ export async function generateItinerary(
     ];
 
     let response = await client.beta.messages.create({
-      model: "claude-opus-4-8",
+      model: "claude-sonnet-5",
       max_tokens: 8000,
       system: SYSTEM_PROMPT,
       messages,
@@ -119,7 +119,7 @@ export async function generateItinerary(
     while (response.stop_reason === "pause_turn") {
       messages.push({ role: "assistant", content: response.content });
       response = await client.beta.messages.create({
-        model: "claude-opus-4-8",
+        model: "claude-sonnet-5",
         max_tokens: 8000,
         system: SYSTEM_PROMPT,
         messages,
@@ -168,7 +168,7 @@ export async function generateItinerary(
 }
 
 /**
- * Build a detailed prompt for Perplexity AI
+ * Build a detailed prompt for Claude
  */
 function buildItineraryPrompt(preferences: ItineraryPreferences): string {
   const {
