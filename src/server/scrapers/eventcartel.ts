@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { type AxiosResponse } from "axios";
 import logger from "../utils/logger";
 import type { NewEvent } from "../../shared/schema";
 import { generateEventHash } from "../utils/deduplication";
@@ -52,7 +52,7 @@ export async function scrapeEventCartel(): Promise<NewEvent[]> {
     while (url && page < MAX_PAGES) {
       page++;
 
-      const response = await axios.get<EventCartelResponse>(url, {
+      const response: AxiosResponse<EventCartelResponse> = await axios.get<EventCartelResponse>(url, {
         headers: BROWSER_HEADERS,
         timeout: 15000,
       });

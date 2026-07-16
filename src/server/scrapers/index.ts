@@ -46,6 +46,7 @@ export async function runAllScrapers(): Promise<{
       tripadvisorEvents,
     houstonZooEvents,
     nrgParkEvents,
+    eventCartelEvents,
     ] = await Promise.all([
       scrapeTicketmaster().catch(err => {
         logger.error("Ticketmaster scraper failed", { error: err });
@@ -99,6 +100,10 @@ export async function runAllScrapers(): Promise<{
       logger.error("NRG Park scraper failed", { error: err });
       return [];
     }),
+    scrapeEventCartel().catch(err => {
+      logger.error("EventCartel scraper failed", { error: err });
+      return [];
+    }),
     ]);
 
     // Log results per source
@@ -116,6 +121,7 @@ export async function runAllScrapers(): Promise<{
       TripAdvisor: ${tripadvisorEvents.length}
     Houston Zoo: ${houstonZooEvents.length}
     NRG Park: ${nrgParkEvents.length}
+    EventCartel: ${eventCartelEvents.length}
     `);
 
     // Combine all events
@@ -133,6 +139,7 @@ export async function runAllScrapers(): Promise<{
       ...tripadvisorEvents,
     ...houstonZooEvents,
     ...nrgParkEvents,
+    ...eventCartelEvents,
     ];
 
     logger.info(`Total events scraped: ${allEvents.length}`);
@@ -228,6 +235,7 @@ export async function runAllScrapers(): Promise<{
       tripadvisor: tripadvisorEvents.length,
     houstonzoo: houstonZooEvents.length,
     nrgpark: nrgParkEvents.length,
+    eventcartel: eventCartelEvents.length,
     };
 
     return {
