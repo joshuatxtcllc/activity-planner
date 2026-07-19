@@ -1,6 +1,7 @@
 import { AgentBase } from '../AgentBase.js';
 import { AgentCapability, AgentContext, AgentResponse } from '../types.js';
 import axios from 'axios';
+import Anthropic from '@anthropic-ai/sdk';
 
 export class SearchAgent extends AgentBase {
   name = 'SearchAgent';
@@ -30,11 +31,8 @@ export class SearchAgent extends AgentBase {
 
   async processMessage(message: string, context: AgentContext): Promise<AgentResponse> {
     try {
-      // Use Perplexity API for web search if available
-      const perplexityKey = process.env.PERPLEXITY_API_KEY;
-
-      if (perplexityKey) {
-        return await this.searchWithPerplexity(message, context);
+      if (process.env.ANTHROPIC_API_KEY) {
+        return await this.searchWithClaude(message, context);
       } else {
         return await this.searchWithGoogle(message, context);
       }
@@ -46,37 +44,25 @@ export class SearchAgent extends AgentBase {
     }
   }
 
-  private async searchWithPerplexity(query: string, context: AgentContext): Promise<AgentResponse> {
-    try {
-      const response = await axios.post(
-        'https://api.perplexity.ai/chat/completions',
-        {
-          model: 'llama-3.1-sonar-small-128k-online',
-          messages: [
-            {
-              role: 'system',
-              content: 'You are a helpful assistant that provides accurate, concise information. Focus on facts and keep responses brief but informative.',
-            },
-            {
-              role: 'user',
-              content: query,
-            },
-          ],
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${process.env.PERPLEXITY_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+  private async searchWithClaude(query: string, context: AgentContext): Promise<AgentResponse> {
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-      const answer = response.data.choices[0].message.content;
-      return this.createResponse(answer);
-    } catch (error) {
-      console.error('Perplexity API error:', error);
-      throw error;
+    const response = await client.beta.messages.create({
+      model: 'claude-sonnet-5',
+      max_tokens: 1024,
+      system: 'You are a helpful assistant that provides accurate, concise information. Focus on facts and keep responses brief but informative.',
+      messages: [{ role: 'user', content: query }],
+      tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 }],
+    });
+
+    const textBlock = response.content.find((block) => block.type === 'text');
+    const answer = textBlock && textBlock.type === 'text' ? textBlock.text : null;
+
+    if (!answer) {
+      throw new Error('No response from Claude');
     }
+
+    return this.createResponse(answer);
   }
 
   private async searchWithGoogle(query: string, context: AgentContext): Promise<AgentResponse> {
