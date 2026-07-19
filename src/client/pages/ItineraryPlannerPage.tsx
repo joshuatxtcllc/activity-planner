@@ -60,18 +60,38 @@ export default function ItineraryPlannerPage() {
 
   const generateMutation = useMutation({
     mutationFn: async (prefs: ItineraryPreferences) => {
-      const response = await fetch("/api/itinerary/generate", {
+      const startResponse = await fetch("/api/itinerary/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(prefs),
       });
 
-      if (!response.ok) {
-        const error = await response.json();
+      if (!startResponse.ok) {
+        const error = await startResponse.json();
         throw new Error(error.error || "Failed to generate itinerary");
       }
 
-      return response.json();
+      const { jobId } = await startResponse.json();
+
+      // The AI call (with live web search) can take a few minutes, so poll
+      // for the result instead of holding one long HTTP request open.
+      while (true) {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+
+        const statusResponse = await fetch(`/api/itinerary/status/${jobId}`);
+        if (!statusResponse.ok) {
+          throw new Error("Lost track of your itinerary request. Please try again.");
+        }
+
+        const statusData = await statusResponse.json();
+
+        if (statusData.status === "completed") {
+          return statusData.result;
+        }
+        if (statusData.status === "failed") {
+          throw new Error(statusData.error || "Failed to generate itinerary");
+        }
+      }
     },
     onSuccess: (data) => {
       setGeneratedItinerary(data);
@@ -279,7 +299,7 @@ export default function ItineraryPlannerPage() {
                 {generateMutation.isPending ? (
                   <span className="flex items-center justify-center gap-2">
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Generating your perfect day...
+                    Generating your perfect day (can take a few minutes)...
                   </span>
                 ) : (
                   "✨ Generate Itinerary"
@@ -320,6 +340,9 @@ export default function ItineraryPlannerPage() {
                   <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
                   <p className="text-gray-600 font-medium">
                     Our AI is crafting your perfect itinerary...
+                  </p>
+                  <p className="text-gray-400 text-sm mt-1">
+                    This checks live venue info, so it can take a few minutes.
                   </p>
                 </div>
               </div>

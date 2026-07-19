@@ -5,7 +5,8 @@ import { desc, and, gte, lte, eq, ilike, or } from "drizzle-orm";
 import { runAllScrapers } from "./scrapers";
 import logger from "./utils/logger";
 import { getNextFriday } from "./utils/date-utils";
-import { generateItinerary, type ItineraryPreferences } from "./services/itinerary-generator";
+import type { ItineraryPreferences } from "./services/itinerary-generator";
+import { startItineraryJob, getItineraryJob } from "./services/itinerary-jobs";
 import { generateRecommendations, getFallbackRecommendations, type RecommendationContext } from "./services/recommendation-engine";
 import { getHoustonWeather, getTimeOfDay, getSeason, getDayOfWeek } from "./services/weather-adapter";
 import curatorRoutes from "./routes/curator";
@@ -179,7 +180,9 @@ router.get("/stats", async (_req, res) => {
 
 /**
  * POST /api/itinerary/generate
- * Generate a personalized Houston itinerary using AI
+ * Kick off itinerary generation as a background job (the underlying AI call,
+ * with live web search, can take several minutes - longer than a synchronous
+ * HTTP request should hold open). Returns a jobId to poll for the result.
  */
 router.post("/itinerary/generate", async (req, res) => {
   try {
@@ -199,25 +202,37 @@ router.post("/itinerary/generate", async (req, res) => {
       return res.status(400).json({ error: "Date must be in the future" });
     }
 
-    logger.info("Generating itinerary", { preferences });
+    logger.info("Starting itinerary job", { preferences });
 
-    const itinerary = await generateItinerary(preferences);
+    const jobId = startItineraryJob(preferences);
 
-    logger.info("Itinerary generated successfully", {
-      itineraryId: itinerary.id,
-      activityCount: itinerary.activities.length
-    });
-
-    res.json(itinerary);
+    res.status(202).json({ jobId });
   } catch (error) {
-    logger.error("Failed to generate itinerary", { error });
-
-    if (error instanceof Error) {
-      res.status(500).json({ error: error.message });
-    } else {
-      res.status(500).json({ error: "Failed to generate itinerary" });
-    }
+    logger.error("Failed to start itinerary job", { error });
+    res.status(500).json({ error: "Failed to start itinerary generation" });
   }
+});
+
+/**
+ * GET /api/itinerary/status/:jobId
+ * Poll the status of a background itinerary generation job.
+ */
+router.get("/itinerary/status/:jobId", (req, res) => {
+  const job = getItineraryJob(req.params.jobId);
+
+  if (!job) {
+    return res.status(404).json({ error: "Job not found or expired" });
+  }
+
+  if (job.status === "completed") {
+    return res.json({ status: "completed", result: job.result });
+  }
+
+  if (job.status === "failed") {
+    return res.json({ status: "failed", error: job.error });
+  }
+
+  res.json({ status: "pending" });
 });
 
 
