@@ -2,11 +2,11 @@ import { Router } from "express";
 import { db } from "./db";
 import { events, houstonActivities } from "../shared/schema";
 import { desc, and, gte, lte, eq, ilike, or } from "drizzle-orm";
-import { runAllScrapers } from "./scrapers";
 import logger from "./utils/logger";
 import { getNextFriday } from "./utils/date-utils";
 import type { ItineraryPreferences } from "./services/itinerary-generator";
 import { startItineraryJob, getItineraryJob } from "./services/itinerary-jobs";
+import { startScrapeJob, getScrapeJob } from "./services/scrape-jobs";
 import { generateRecommendations, getFallbackRecommendations, type RecommendationContext } from "./services/recommendation-engine";
 import { getHoustonWeather, getTimeOfDay, getSeason, getDayOfWeek } from "./services/weather-adapter";
 import curatorRoutes from "./routes/curator";
@@ -97,17 +97,36 @@ router.get("/events/weekend", async (_req, res) => {
 
 /**
  * POST /api/scrape
- * Manually trigger scraping (admin only in production)
+ * Kick off a scrape as a background job (one AI-assisted scraper uses live
+ * web search and can take a while - longer than a synchronous HTTP request
+ * should hold open). Returns a jobId to poll for the result.
  */
 router.post("/scrape", async (_req, res) => {
-  try {
-    logger.info("Manual scrape triggered");
-    const result = await runAllScrapers();
-    res.json(result);
-  } catch (error) {
-    logger.error("Manual scrape failed", { error });
-    res.status(500).json({ error: "Scraping failed" });
+  logger.info("Manual scrape triggered");
+  const jobId = startScrapeJob();
+  res.status(202).json({ jobId });
+});
+
+/**
+ * GET /api/scrape/status/:jobId
+ * Poll the status of a background scrape job.
+ */
+router.get("/scrape/status/:jobId", (req, res) => {
+  const job = getScrapeJob(req.params.jobId);
+
+  if (!job) {
+    return res.status(404).json({ error: "Job not found or expired" });
   }
+
+  if (job.status === "completed") {
+    return res.json({ status: "completed", result: job.result });
+  }
+
+  if (job.status === "failed") {
+    return res.json({ status: "failed", error: job.error });
+  }
+
+  res.json({ status: "pending" });
 });
 
 /**

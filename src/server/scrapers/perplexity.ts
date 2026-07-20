@@ -1,40 +1,60 @@
-import axios from "axios";
+import Anthropic from "@anthropic-ai/sdk";
 import logger from "../utils/logger";
 import type { NewEvent } from "../../shared/schema";
 import { generateEventHash } from "../utils/deduplication";
 import { getNextFridays } from "../utils/date-utils";
 
-interface PerplexityResponse {
-  id: string;
-  model: string;
-  choices: Array<{
-    message: {
-      role: string;
-      content: string;
-    };
-    finish_reason: string;
-  }>;
-}
+const EVENTS_JSON_SCHEMA = {
+  type: "object",
+  properties: {
+    events: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          description: { type: "string" },
+          date: { type: "string" },
+          time: { type: "string" },
+          venue: { type: "string" },
+          location: { type: "string" },
+          address: { type: "string" },
+          category: { type: "string" },
+          url: { type: "string" },
+          isFree: { type: "boolean" },
+          priceRange: { type: "string" },
+        },
+        required: ["title", "description", "date", "venue", "category"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["events"],
+  additionalProperties: false,
+} as const;
 
 /**
- * Scrape events using Perplexity AI
- * Perplexity excels at finding current, real-time information about local events
+ * Scrape events using Claude with live web search.
+ * Source label stays "perplexity" for continuity with existing stats/data
+ * (this scraper originally used the Perplexity API; the source field is a
+ * generator identifier, not a literal dependency on that API anymore).
  */
 export async function scrapePerplexity(): Promise<NewEvent[]> {
-  const apiKey = process.env.PERPLEXITY_API_KEY?.trim().replace(/^['"]|['"]$/g, '');
+  const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    logger.warn("Perplexity API key not configured, skipping scraper");
+    logger.warn("Anthropic API key not configured, skipping scraper");
     return [];
   }
 
+  const client = new Anthropic({ apiKey });
+
   try {
-    logger.info("Starting Perplexity AI scraper for Houston events");
+    logger.info("Starting AI-assisted Houston events scraper");
 
     const events: NewEvent[] = [];
     const fridays = getNextFridays(4); // Get next 4 Fridays
 
-    // Query Perplexity for upcoming events in Houston
-    const prompt = `Find upcoming events and activities in Houston, Texas for the next 4 weeks (starting ${fridays[0].toDateString()}).
+    const prompt = `Find upcoming events and activities in Houston, Texas for the next 4 weeks (starting ${fridays[0].toDateString()}). Use web search to find real, current events.
 
 Include a diverse mix of:
 - Concerts and live music (venues like White Oak Music Hall, House of Blues, Toyota Center)
@@ -48,73 +68,39 @@ Include a diverse mix of:
 - Fitness events and classes
 - Community events
 
-For EACH event, provide in this EXACT JSON format (provide an array of events):
-[
-  {
-    "title": "Event Name",
-    "description": "Brief description of the event",
-    "date": "YYYY-MM-DD",
-    "time": "HH:MM" (24-hour format, or "00:00" if unknown),
-    "venue": "Venue Name",
-    "location": "City, State",
-    "address": "Street address if known",
-    "category": "music|food|sports|arts|outdoor|culture|comedy|fitness|community|other",
-    "url": "Event website or ticket link",
-    "isFree": true or false,
-    "priceRange": "Free|$|$$|$$$|$$$$" (or specific price if known)
-  }
-]
+For each event provide: title, description, date (YYYY-MM-DD), time (HH:MM 24-hour, or "00:00" if unknown), venue, location (city, state), address if known, category (music|food|sports|arts|outdoor|culture|comedy|fitness|community|other), url (event website or ticket link), isFree, and priceRange (Free|$|$$|$$$|$$$$ or a specific price).
 
-Provide ONLY the JSON array, no other text. Include at least 20-30 diverse events.`;
+Include at least 15-20 diverse, real events.`;
 
-    const response = await axios.post<PerplexityResponse>(
-      "https://api.perplexity.ai/chat/completions",
-      {
-        model: "sonar", // Online model for real-time search
-        messages: [
-          {
-            role: "system",
-            content: "You are a helpful assistant that finds local events and activities. Always respond with valid JSON arrays only, no markdown formatting or extra text."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        temperature: 0.2, // Lower temperature for more factual responses
-        max_tokens: 4000,
-      },
-      {
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    const response = await client.beta.messages.create({
+      model: "claude-sonnet-5",
+      max_tokens: 8000,
+      system: "You are a helpful assistant that finds real, current local events using web search.",
+      messages: [{ role: "user", content: prompt }],
+      tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 3 }],
+      output_config: { format: { type: "json_schema", schema: EVENTS_JSON_SCHEMA } },
+    });
 
-    const content = response.data.choices[0]?.message?.content;
-    if (!content) {
-      logger.warn("No content received from Perplexity");
+    const textBlock = response.content.find((block) => block.type === "text");
+    if (!textBlock || textBlock.type !== "text") {
+      logger.warn("No content received from Claude events scraper");
       return [];
     }
 
-    // Parse the JSON response
     let parsedEvents: any[];
     try {
-      // Remove markdown code blocks if present
-      const cleanContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      parsedEvents = JSON.parse(cleanContent);
+      parsedEvents = JSON.parse(textBlock.text).events;
     } catch (parseError) {
-      logger.error("Failed to parse Perplexity JSON response", {
+      logger.error("Failed to parse Claude events scraper response", {
         error: parseError,
-        content: content.substring(0, 500)
+        content: textBlock.text.substring(0, 500),
       });
       return [];
     }
 
-    logger.info(`Perplexity found ${parsedEvents.length} potential events`);
+    logger.info(`Claude events scraper found ${parsedEvents.length} potential events`);
 
-    // Transform Perplexity events to our schema
+    // Transform to our schema
     for (const event of parsedEvents) {
       try {
         // Parse date and time
@@ -166,21 +152,20 @@ Provide ONLY the JSON array, no other text. Include at least 20-30 diverse event
 
         events.push(newEvent);
       } catch (error) {
-        logger.error("Error parsing Perplexity event", { error, event });
+        logger.error("Error parsing scraped event", { error, event });
       }
     }
 
-    logger.info(`Successfully parsed ${events.length} Perplexity events`);
+    logger.info(`Successfully parsed ${events.length} events`);
     return events;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      logger.error("Failed to scrape Perplexity", {
-        error: error.message,
-        status: error.response?.status,
-        data: error.response?.data
+    if (error instanceof Anthropic.APIError) {
+      logger.error("Claude events scraper API error", {
+        status: error.status,
+        message: error.message,
       });
     } else {
-      logger.error("Failed to scrape Perplexity", { error });
+      logger.error("Failed to run Claude events scraper", { error });
     }
     return [];
   }

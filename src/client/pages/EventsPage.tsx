@@ -18,9 +18,27 @@ export default function EventsPage() {
 
   const scrapeMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch("/api/scrape", { method: "POST" });
-      if (!response.ok) throw new Error("Scrape failed");
-      return response.json();
+      const startResponse = await fetch("/api/scrape", { method: "POST" });
+      if (!startResponse.ok) throw new Error("Scrape failed to start");
+      const { jobId } = await startResponse.json();
+
+      // Scraping can take a while (one source uses live web search), so poll
+      // instead of holding one long HTTP request open.
+      while (true) {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+
+        const statusResponse = await fetch(`/api/scrape/status/${jobId}`);
+        if (!statusResponse.ok) throw new Error("Lost track of the scrape job");
+
+        const statusData = await statusResponse.json();
+
+        if (statusData.status === "completed") {
+          return statusData.result;
+        }
+        if (statusData.status === "failed") {
+          throw new Error(statusData.error || "Scraping failed");
+        }
+      }
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["weekend-events"] });
