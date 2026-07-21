@@ -72,18 +72,33 @@ For each event provide: title, description, date (YYYY-MM-DD), time (HH:MM 24-ho
 
 Include at least 15-20 diverse, real events.`;
 
-    const response = await client.beta.messages.create({
+    const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: "user", content: prompt }];
+
+    let response = await client.beta.messages.create({
       model: "claude-sonnet-5",
       max_tokens: 8000,
       system: "You are a helpful assistant that finds real, current local events using web search.",
-      messages: [{ role: "user", content: prompt }],
+      messages,
       tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 3 }],
       output_config: { format: { type: "json_schema", schema: EVENTS_JSON_SCHEMA } },
     });
 
+    // Server-side tool loop may pause after its internal iteration cap; resume until it doesn't.
+    while (response.stop_reason === "pause_turn") {
+      messages.push({ role: "assistant", content: response.content });
+      response = await client.beta.messages.create({
+        model: "claude-sonnet-5",
+        max_tokens: 8000,
+        system: "You are a helpful assistant that finds real, current local events using web search.",
+        messages,
+        tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 3 }],
+        output_config: { format: { type: "json_schema", schema: EVENTS_JSON_SCHEMA } },
+      });
+    }
+
     const textBlock = response.content.find((block) => block.type === "text");
     if (!textBlock || textBlock.type !== "text") {
-      logger.warn("No content received from Claude events scraper");
+      logger.warn("No content received from Claude events scraper", { stopReason: response.stop_reason });
       return [];
     }
 
