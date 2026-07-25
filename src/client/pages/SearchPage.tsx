@@ -3,6 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import EventCard from "../components/EventCard";
 import ExternalLinkWarning from "../components/ExternalLinkWarning";
 import type { Event } from "../../shared/schema";
+import { groupDuplicateEvents } from "../utils/eventGrouping";
 
 interface Activity {
   id: string;
@@ -59,7 +60,8 @@ export default function SearchPage() {
 
   const results = searchMutation.data;
   const hasSearched = searchMutation.isSuccess;
-  const totalResults = (results?.events.length ?? 0) + (results?.activities.length ?? 0);
+  const dedupedEvents = groupDuplicateEvents(results?.events ?? []);
+  const totalResults = dedupedEvents.length + (results?.activities.length ?? 0);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -103,13 +105,13 @@ export default function SearchPage() {
             </p>
           ) : (
             <>
-              {results && results.events.length > 0 && (
+              {dedupedEvents.length > 0 && (
                 <div>
                   <h3 className="text-xl font-bold text-gray-900 mb-4">
-                    Upcoming Events ({results.events.length})
+                    Upcoming Events ({dedupedEvents.length})
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {results.events.map((event) => (
+                    {dedupedEvents.map((event) => (
                       <EventCard key={event.id} event={event} onLike={handleLike} />
                     ))}
                   </div>

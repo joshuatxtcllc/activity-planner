@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import EventCard from "../components/EventCard";
 import type { Event } from "../../shared/schema";
+import { groupDuplicateEvents, type GroupedEvent } from "../utils/eventGrouping";
 
 async function fetchWeekendEvents(): Promise<Event[]> {
   const response = await fetch("/api/events/weekend");
@@ -85,7 +86,8 @@ export default function EventsPage() {
     );
   }
 
-  const groupedByDate = groupEventsByDate(events || []);
+  const deduplicatedEvents = groupDuplicateEvents(events || []);
+  const groupedByDate = groupEventsByDate(deduplicatedEvents);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -95,7 +97,7 @@ export default function EventsPage() {
             This Weekend in Houston
           </h2>
           <p className="mt-2 text-gray-600">
-            {events?.length || 0} events happening this weekend
+            {deduplicatedEvents.length} events happening this weekend
           </p>
         </div>
         <button
@@ -145,7 +147,7 @@ export default function EventsPage() {
   );
 }
 
-function groupEventsByDate(events: Event[]): Record<string, Event[]> {
+function groupEventsByDate(events: GroupedEvent[]): Record<string, GroupedEvent[]> {
   return events.reduce(
     (acc, event) => {
       const dateKey = event.startDate.toString().split("T")[0];
@@ -153,7 +155,7 @@ function groupEventsByDate(events: Event[]): Record<string, Event[]> {
       acc[dateKey].push(event);
       return acc;
     },
-    {} as Record<string, Event[]>
+    {} as Record<string, GroupedEvent[]>
   );
 }
 
