@@ -16,6 +16,7 @@ import { scrapeTripAdvisor } from "./tripadvisor";
 import { scrapeHoustonZoo } from "./houstonzoo";
 import { scrapeNrgPark } from "./nrgpark";
 import { scrapeEventCartel } from "./eventcartel";
+import { scrapeHoustonImprov } from "./houstonimprov";
 import { eq } from "drizzle-orm";
 
 /**
@@ -47,6 +48,7 @@ export async function runAllScrapers(): Promise<{
     houstonZooEvents,
     nrgParkEvents,
     eventCartelEvents,
+    houstonImprovEvents,
     ] = await Promise.all([
       scrapeTicketmaster().catch(err => {
         logger.error("Ticketmaster scraper failed", { error: err });
@@ -104,6 +106,10 @@ export async function runAllScrapers(): Promise<{
       logger.error("EventCartel scraper failed", { error: err });
       return [];
     }),
+    scrapeHoustonImprov().catch(err => {
+      logger.error("Houston Improv scraper failed", { error: err });
+      return [];
+    }),
     ]);
 
     // Log results per source
@@ -122,6 +128,7 @@ export async function runAllScrapers(): Promise<{
     Houston Zoo: ${houstonZooEvents.length}
     NRG Park: ${nrgParkEvents.length}
     EventCartel: ${eventCartelEvents.length}
+    Houston Improv: ${houstonImprovEvents.length}
     `);
 
     // Combine all events
@@ -140,6 +147,7 @@ export async function runAllScrapers(): Promise<{
     ...houstonZooEvents,
     ...nrgParkEvents,
     ...eventCartelEvents,
+    ...houstonImprovEvents,
     ];
 
     logger.info(`Total events scraped: ${allEvents.length}`);
@@ -236,6 +244,7 @@ export async function runAllScrapers(): Promise<{
     houstonzoo: houstonZooEvents.length,
     nrgpark: nrgParkEvents.length,
     eventcartel: eventCartelEvents.length,
+    houstonimprov: houstonImprovEvents.length,
     };
 
     return {
