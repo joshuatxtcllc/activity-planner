@@ -1,5 +1,48 @@
 import nodemailer from "nodemailer";
+import twilio from "twilio";
 import logger from "./logger";
+
+// Lazy Twilio client so misconfigured env vars don't crash boot.
+let twilioClient: ReturnType<typeof twilio> | null = null;
+function getTwilioClient() {
+  const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN } = process.env;
+  if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN) return null;
+  if (!twilioClient) {
+    twilioClient = twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
+  }
+  return twilioClient;
+}
+
+/**
+ * Low-level SMS sender via Twilio.
+ *
+ * Returns true on success, false when Twilio env vars are missing or
+ * the send fails. Body is truncated to 1500 chars so multi-segment SMS
+ * stays within reasonable carrier limits.
+ */
+export async function sendSMS(to: string, body: string): Promise<boolean> {
+  const { TWILIO_FROM } = process.env;
+  const client = getTwilioClient();
+
+  if (!client || !TWILIO_FROM) {
+    logger.warn("Twilio not configured; skipping SMS", { to });
+    return false;
+  }
+
+  const truncated = body.length > 1500 ? body.slice(0, 1497) + "..." : body;
+
+  try {
+    await client.messages.create({ to, from: TWILIO_FROM, body: truncated });
+    logger.info("SMS sent", { to, length: truncated.length });
+    return true;
+  } catch (error) {
+    logger.error("Failed to send SMS", {
+      to,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return false;
+  }
+}
 
 interface ScrapingResult {
   total: number;

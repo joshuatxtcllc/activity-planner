@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { alertRules, alertDeliveries, type Event, type AlertRule } from "../../shared/schema";
-import { sendEmail } from "../utils/mailer";
+import { sendEmail, sendSMS } from "../utils/mailer";
 import logger from "../utils/logger";
 
 /**
@@ -218,18 +218,12 @@ export async function evaluateAlerts(newEvents: Event[]): Promise<{
     }
 
     if (smsPending.length > 0 && smsTo) {
-      // SMS provider is wired in a later commit; record as "skipped" for
-      // now so audit rows still exist and dedup is honored once Twilio
-      // lands. Change to sendSMS(...) when SMS support is in.
       const body = renderSmsBody(rule, smsPending);
-      logger.info("SMS alert queued (provider not yet configured)", {
-        ruleId: rule.id,
-        to: smsTo,
-        preview: body.slice(0, 160),
-      });
+      const ok = await sendSMS(smsTo, body);
       for (const ev of smsPending) {
-        await recordDelivery(rule.id, ev.id, "sms", "skipped", "sms_provider_not_configured");
+        await recordDelivery(rule.id, ev.id, "sms", ok ? "sent" : "failed", ok ? undefined : "twilio_send_failed");
       }
+      if (ok) delivered += smsPending.length;
     }
 
     // Bookkeeping on the rule itself.
