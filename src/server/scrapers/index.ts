@@ -16,6 +16,8 @@ import { scrapeTripAdvisor } from "./tripadvisor";
 import { scrapeHoustonZoo } from "./houstonzoo";
 import { scrapeNrgPark } from "./nrgpark";
 import { scrapeEventCartel } from "./eventcartel";
+import { scrapeHoustonImprov } from "./houstonimprov";
+import { evaluateAlerts } from "../services/alert-matcher";
 import { eq } from "drizzle-orm";
 
 /**
@@ -47,6 +49,7 @@ export async function runAllScrapers(): Promise<{
     houstonZooEvents,
     nrgParkEvents,
     eventCartelEvents,
+    houstonImprovEvents,
     ] = await Promise.all([
       scrapeTicketmaster().catch(err => {
         logger.error("Ticketmaster scraper failed", { error: err });
@@ -104,6 +107,10 @@ export async function runAllScrapers(): Promise<{
       logger.error("EventCartel scraper failed", { error: err });
       return [];
     }),
+    scrapeHoustonImprov().catch(err => {
+      logger.error("Houston Improv scraper failed", { error: err });
+      return [];
+    }),
     ]);
 
     // Log results per source
@@ -122,6 +129,7 @@ export async function runAllScrapers(): Promise<{
     Houston Zoo: ${houstonZooEvents.length}
     NRG Park: ${nrgParkEvents.length}
     EventCartel: ${eventCartelEvents.length}
+    Houston Improv: ${houstonImprovEvents.length}
     `);
 
     // Combine all events
@@ -140,6 +148,7 @@ export async function runAllScrapers(): Promise<{
     ...houstonZooEvents,
     ...nrgParkEvents,
     ...eventCartelEvents,
+    ...houstonImprovEvents,
     ];
 
     logger.info(`Total events scraped: ${allEvents.length}`);
@@ -148,6 +157,7 @@ export async function runAllScrapers(): Promise<{
     let newCount = 0;
     let duplicateCount = 0;
     let skippedCount = 0;
+    const insertedEvents: (typeof events.$inferSelect)[] = [];
 
     for (const event of allEvents) {
       try {
@@ -186,7 +196,8 @@ export async function runAllScrapers(): Promise<{
           duplicateCount++;
           logger.debug(`Duplicate event skipped: ${event.title}`);
         } else {
-          await db.insert(events).values(event);
+          const inserted = await db.insert(events).values(event).returning();
+          if (inserted[0]) insertedEvents.push(inserted[0]);
           newCount++;
           logger.debug(`New event saved: ${event.title}`);
         }
@@ -221,6 +232,16 @@ export async function runAllScrapers(): Promise<{
 
     logger.info(`✅ Scraping complete: ${newCount} new, ${duplicateCount} duplicates, ${skippedCount} skipped (invalid)`);
 
+    // Fire interest-based alerts against the freshly inserted events.
+    // Wrapped in try/catch so a matcher failure never fails the scrape.
+    try {
+      await evaluateAlerts(insertedEvents);
+    } catch (error) {
+      logger.error("Alert evaluation failed (scrape still succeeded)", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
     const bySource: Record<string, number> = {
       ticketmaster: ticketmasterEvents.length,
       eventbrite: eventbriteEvents.length,
@@ -236,6 +257,7 @@ export async function runAllScrapers(): Promise<{
     houstonzoo: houstonZooEvents.length,
     nrgpark: nrgParkEvents.length,
     eventcartel: eventCartelEvents.length,
+    houstonimprov: houstonImprovEvents.length,
     };
 
     return {
