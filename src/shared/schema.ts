@@ -229,3 +229,88 @@ export const selectUserSubmittedActivitySchema = createSelectSchema(userSubmitte
 
 export type UserSubmittedActivity = typeof userSubmittedActivities.$inferSelect;
 export type NewUserSubmittedActivity = typeof userSubmittedActivities.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Alert Rules
+//
+// A rule owned by a session (or a well-known "default" session for the app
+// operator) describing when a newly scraped event should trigger an
+// alert. Rules are ANDed across dimensions: an event must match every
+// non-empty filter to fire. Within a single dimension (keywords, venues,
+// categories, sources), any match counts (OR).
+// ---------------------------------------------------------------------------
+export const alertRules = pgTable("alert_rules", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  sessionId: text("session_id").notNull(), // owner; "default" for the app operator
+  name: text("name").notNull(), // human-readable label, e.g. "Comedy at Houston Improv"
+
+  // Filters (all optional; empty array = don't restrict on this dimension)
+  keywords: text("keywords").array().default([]), // case-insensitive substring match against title/description
+  venues: text("venues").array().default([]), // case-insensitive substring match against event.venue
+  categories: text("categories").array().default([]), // exact-match against event.category
+  sources: text("sources").array().default([]), // exact-match against event.source
+
+  // Optional date window (ISO strings; null = no window)
+  dateRangeStart: timestamp("date_range_start"),
+  dateRangeEnd: timestamp("date_range_end"),
+
+  // Delivery channels
+  channelEmail: boolean("channel_email").default(true),
+  channelSms: boolean("channel_sms").default(false),
+  channelInApp: boolean("channel_in_app").default(true),
+
+  // Contact overrides (fall back to env NOTIFICATION_EMAIL / NOTIFICATION_SMS)
+  emailTo: text("email_to"),
+  smsTo: text("sms_to"),
+
+  // Lifecycle
+  isActive: boolean("is_active").default(true),
+  lastFiredAt: timestamp("last_fired_at"),
+  totalFired: integer("total_fired").default(0),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertAlertRuleSchema = createInsertSchema(alertRules);
+export const selectAlertRuleSchema = createSelectSchema(alertRules);
+export type AlertRule = typeof alertRules.$inferSelect;
+export type NewAlertRule = typeof alertRules.$inferInsert;
+
+// Alert deliveries — one row per (rule, event) fire, to prevent duplicate alerts
+export const alertDeliveries = pgTable("alert_deliveries", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  ruleId: uuid("rule_id").notNull(),
+  eventId: uuid("event_id").notNull(),
+  channel: text("channel").notNull(), // email | sms | in_app
+  status: text("status").notNull(), // sent | failed | skipped
+  error: text("error"),
+  sentAt: timestamp("sent_at").defaultNow().notNull(),
+  uniqueKey: text("unique_key").unique(), // ruleId + eventId + channel — prevents dupes
+});
+
+export const insertAlertDeliverySchema = createInsertSchema(alertDeliveries);
+export type AlertDelivery = typeof alertDeliveries.$inferSelect;
+export type NewAlertDelivery = typeof alertDeliveries.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Watched Venues — first-class registry for the four target Houston venues
+// (and any other user-added venues). Used to power venue filters on the
+// dashboard and to guarantee the Houston Improv scraper stays coverage-
+// checked. A canonical list is seeded in migrations.
+// ---------------------------------------------------------------------------
+export const watchedVenues = pgTable("watched_venues", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  slug: text("slug").notNull().unique(), // e.g. "toyota-center"
+  name: text("name").notNull(), // display name
+  aliases: text("aliases").array().default([]), // alternate spellings scrapers may return
+  address: text("address"),
+  neighborhood: text("neighborhood"),
+  website: text("website"),
+  primarySource: text("primary_source"), // ticketmaster | seatgeek | houstonimprov | ...
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertWatchedVenueSchema = createInsertSchema(watchedVenues);
+export type WatchedVenue = typeof watchedVenues.$inferSelect;
+export type NewWatchedVenue = typeof watchedVenues.$inferInsert;

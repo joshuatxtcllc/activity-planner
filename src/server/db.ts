@@ -195,6 +195,69 @@ CREATE TABLE IF NOT EXISTS "user_submitted_activities" (
 
 -- Create index for user_submitted_activities
 CREATE INDEX IF NOT EXISTS "idx_user_submitted_activities_session" ON "user_submitted_activities" ("session_id");
+
+-- Create alert_rules table for interest-based nightlife alerts
+CREATE TABLE IF NOT EXISTS "alert_rules" (
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "session_id" text NOT NULL,
+  "name" text NOT NULL,
+  "keywords" text[] DEFAULT '{}',
+  "venues" text[] DEFAULT '{}',
+  "categories" text[] DEFAULT '{}',
+  "sources" text[] DEFAULT '{}',
+  "date_range_start" timestamp,
+  "date_range_end" timestamp,
+  "channel_email" boolean DEFAULT true,
+  "channel_sms" boolean DEFAULT false,
+  "channel_in_app" boolean DEFAULT true,
+  "email_to" text,
+  "sms_to" text,
+  "is_active" boolean DEFAULT true,
+  "last_fired_at" timestamp,
+  "total_fired" integer DEFAULT 0,
+  "created_at" timestamp DEFAULT now() NOT NULL,
+  "updated_at" timestamp DEFAULT now() NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS "idx_alert_rules_session" ON "alert_rules" ("session_id");
+CREATE INDEX IF NOT EXISTS "idx_alert_rules_active" ON "alert_rules" ("is_active");
+
+-- Create alert_deliveries table for dedup + audit of fired alerts
+CREATE TABLE IF NOT EXISTS "alert_deliveries" (
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "rule_id" uuid NOT NULL,
+  "event_id" uuid NOT NULL,
+  "channel" text NOT NULL,
+  "status" text NOT NULL,
+  "error" text,
+  "sent_at" timestamp DEFAULT now() NOT NULL,
+  "unique_key" text UNIQUE
+);
+
+CREATE INDEX IF NOT EXISTS "idx_alert_deliveries_rule" ON "alert_deliveries" ("rule_id");
+CREATE INDEX IF NOT EXISTS "idx_alert_deliveries_event" ON "alert_deliveries" ("event_id");
+
+-- Create watched_venues table for first-class venue registry
+CREATE TABLE IF NOT EXISTS "watched_venues" (
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "slug" text NOT NULL UNIQUE,
+  "name" text NOT NULL,
+  "aliases" text[] DEFAULT '{}',
+  "address" text,
+  "neighborhood" text,
+  "website" text,
+  "primary_source" text,
+  "created_at" timestamp DEFAULT now() NOT NULL
+);
+
+-- Seed the four target Houston nightlife venues (idempotent)
+INSERT INTO "watched_venues" (slug, name, aliases, address, neighborhood, website, primary_source)
+VALUES
+  ('toyota-center', 'Toyota Center', ARRAY['Toyota Ctr'], '1510 Polk St, Houston, TX 77002', 'Downtown', 'https://www.houstontoyotacenter.com', 'ticketmaster'),
+  ('house-of-blues-houston', 'House of Blues Houston', ARRAY['HOB Houston', 'House of Blues'], '1204 Caroline St, Houston, TX 77002', 'Downtown', 'https://www.houseofblues.com/houston', 'ticketmaster'),
+  ('713-music-hall', '713 Music Hall', ARRAY['713 Music', '713MH'], '401 Franklin St, Houston, TX 77201', 'Downtown', 'https://713musichall.com', 'ticketmaster'),
+  ('houston-improv', 'Houston Improv', ARRAY['The Improv Houston', 'Improv Houston'], '7620 Katy Fwy #431, Houston, TX 77024', 'Memorial', 'https://improv.com/houston', 'houstonimprov')
+ON CONFLICT (slug) DO NOTHING;
 `;
 
 /**
