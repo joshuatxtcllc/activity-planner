@@ -8,23 +8,24 @@ interface ScrapingResult {
 }
 
 /**
- * Send email notification about new events
+ * Low-level email sender used by the summary notifier and the
+ * per-rule alert dispatcher.
+ *
+ * Returns true on success, false when SMTP env vars are missing or the
+ * send fails. Callers use the boolean to record delivery status in
+ * alert_deliveries so a failure surfaces in the audit trail without
+ * crashing the run.
  */
-export async function sendEventNotification(
-  result: ScrapingResult
-): Promise<void> {
-  const {
-    SMTP_HOST,
-    SMTP_PORT,
-    SMTP_USER,
-    SMTP_PASS,
-    NOTIFICATION_EMAIL,
-  } = process.env;
+export async function sendEmail(
+  to: string,
+  subject: string,
+  html: string
+): Promise<boolean> {
+  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = process.env;
 
-  // Skip if email not configured
-  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS || !NOTIFICATION_EMAIL) {
-    logger.warn("Email not configured, skipping notification");
-    return;
+  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
+    logger.warn("SMTP not configured; skipping email", { to, subject });
+    return false;
   }
 
   try {
@@ -32,38 +33,53 @@ export async function sendEventNotification(
       host: SMTP_HOST,
       port: parseInt(SMTP_PORT || "587"),
       secure: SMTP_PORT === "465",
-      auth: {
-        user: SMTP_USER,
-        pass: SMTP_PASS,
-      },
+      auth: { user: SMTP_USER, pass: SMTP_PASS },
     });
 
-    const appUrl = process.env.APP_URL || "http://localhost:5000";
-
-    await transporter.sendMail({
-      from: SMTP_USER,
-      to: NOTIFICATION_EMAIL,
-      subject: `🎉 ${result.new} New Houston Events This Weekend!`,
-      html: `
-        <h2>Houston Events Update</h2>
-        <p>Your weekend event scraper has found new activities!</p>
-
-        <ul>
-          <li><strong>Total scraped:</strong> ${result.total}</li>
-          <li><strong>New events:</strong> ${result.new}</li>
-          <li><strong>Duplicates skipped:</strong> ${result.duplicates}</li>
-        </ul>
-
-        <p><a href="${appUrl}" style="background: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">View Events</a></p>
-
-        <p style="color: #666; font-size: 12px; margin-top: 30px;">
-          Sent by Houston Events Aggregator
-        </p>
-      `,
-    });
-
-    logger.info("Email notification sent successfully");
+    await transporter.sendMail({ from: SMTP_USER, to, subject, html });
+    logger.info("Email sent", { to, subject });
+    return true;
   } catch (error) {
-    logger.error("Failed to send email notification", { error });
+    logger.error("Failed to send email", {
+      to,
+      subject,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return false;
   }
+}
+
+/**
+ * Send email notification about new events (post-scrape summary).
+ * Kept for backwards compatibility with the existing scheduler.
+ */
+export async function sendEventNotification(
+  result: ScrapingResult
+): Promise<void> {
+  const { NOTIFICATION_EMAIL } = process.env;
+  if (!NOTIFICATION_EMAIL) {
+    logger.warn("NOTIFICATION_EMAIL not set; skipping summary email");
+    return;
+  }
+
+  const appUrl = process.env.APP_URL || "http://localhost:5000";
+  const subject = `🎉 ${result.new} New Houston Events This Weekend!`;
+  const html = `
+    <h2>Houston Events Update</h2>
+    <p>Your weekend event scraper has found new activities!</p>
+
+    <ul>
+      <li><strong>Total scraped:</strong> ${result.total}</li>
+      <li><strong>New events:</strong> ${result.new}</li>
+      <li><strong>Duplicates skipped:</strong> ${result.duplicates}</li>
+    </ul>
+
+    <p><a href="${appUrl}" style="background: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">View Events</a></p>
+
+    <p style="color: #666; font-size: 12px; margin-top: 30px;">
+      Sent by Houston Events Aggregator
+    </p>
+  `;
+
+  await sendEmail(NOTIFICATION_EMAIL, subject, html);
 }
