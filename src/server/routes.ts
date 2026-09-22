@@ -14,6 +14,7 @@ import userActivitiesRoutes from "./routes/user-activities";
 import verifyUrlRoutes from "./routes/verify-url";
 import preferencesRoutes from "./routes/preferences";
 import searchRoutes from "./routes/search";
+import alertRulesRoutes from "./routes/alert-rules";
 
 const router = Router();
 
@@ -32,35 +33,75 @@ router.use("/preferences", preferencesRoutes);
 // Mount internal search routes (real events + curated activities)
 router.use("/search", searchRoutes);
 
+// Mount alert-rule CRUD routes
+router.use("/alert-rules", alertRulesRoutes);
+
 /**
  * GET /api/events
  * Get all upcoming events
  */
 router.get("/events", async (req, res) => {
   try {
-    const { source, category, upcoming } = req.query;
+    const {
+      source,
+      category,
+      upcoming,
+      venue,
+      dateStart,
+      dateEnd,
+      search,
+      sort,
+      limit,
+    } = req.query;
 
-    // Build query filters
     const filters = [];
 
-    if (source) {
-      filters.push(eq(events.source, source as string));
+    if (source) filters.push(eq(events.source, source as string));
+    if (category) filters.push(eq(events.category, category as string));
+    if (upcoming === "true") filters.push(gte(events.startDate, new Date()));
+
+    // Venue: substring match so "House of Blues" catches
+    // "House of Blues Houston" without users hunting the exact spelling.
+    if (venue) filters.push(ilike(events.venue, `%${venue as string}%`));
+
+    // Optional date window (ISO strings).
+    if (dateStart) {
+      const d = new Date(dateStart as string);
+      if (!isNaN(d.getTime())) filters.push(gte(events.startDate, d));
+    }
+    if (dateEnd) {
+      const d = new Date(dateEnd as string);
+      if (!isNaN(d.getTime())) filters.push(lte(events.startDate, d));
     }
 
-    if (category) {
-      filters.push(eq(events.category, category as string));
+    // Free-text search over title + description.
+    if (search) {
+      const term = `%${search as string}%`;
+      filters.push(or(ilike(events.title, term), ilike(events.description, term))!);
     }
 
-    if (upcoming === "true") {
-      filters.push(gte(events.startDate, new Date()));
-    }
+    const orderBy = (() => {
+      switch (sort) {
+        case "date_desc":
+          return desc(events.startDate);
+        case "newest":
+          return desc(events.scrapedAt);
+        case "title":
+          return events.title;
+        case "date_asc":
+        default:
+          return events.startDate; // ascending is the useful default for a calendar
+      }
+    })();
+
+    const cap = Math.min(parseInt((limit as string) || "200", 10) || 200, 500);
 
     const allEvents = await db
       .select()
       .from(events)
       .where(filters.length > 0 ? and(...filters) : undefined)
-      .orderBy(desc(events.startDate))
-      .limit(100);
+      .orderBy(orderBy)
+      .limit(cap);
 
     res.json(allEvents);
   } catch (error) {
