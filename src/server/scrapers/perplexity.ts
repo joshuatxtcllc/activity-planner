@@ -64,11 +64,12 @@ Include a diverse mix of:
 - Theater and performing arts
 - Outdoor activities (Hermann Park, Buffalo Bayou, Discovery Green)
 - Cultural festivals
-- Comedy shows
+- Comedy shows and stand-up (Houston Improv, etc.)
 - Fitness events and classes
 - Community events
+- Game nights: bingo nights, trivia nights, karaoke, board game meetups, pub games
 
-For each event provide: title, description, date (YYYY-MM-DD), time (HH:MM 24-hour, or "00:00" if unknown), venue, location (city, state), address if known, category (music|food|sports|arts|outdoor|culture|comedy|fitness|community|other), url (event website or ticket link), isFree, and priceRange (Free|$|$$|$$$|$$$$ or a specific price).
+For each event provide: title, description, date (YYYY-MM-DD), time (HH:MM 24-hour, or "00:00" if unknown), venue, location (city, state), address if known, category (music|food|sports|arts|outdoor|culture|comedy|fitness|community|game_night|other), url (event website or ticket link), isFree, and priceRange (Free|$|$$|$$$|$$$$ or a specific price). Use category=game_night for bingo, trivia, karaoke, board-game, and pub-game events.
 
 Include at least 15-20 diverse, real events.`;
 

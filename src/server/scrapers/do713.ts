@@ -120,8 +120,19 @@ function getUpcomingWeekendDates(): Date[] {
 
 function mapCategory(raw: string): string | undefined {
   const lower = raw.toLowerCase();
+  // Game night category maps ahead of "music"/"arts" so a "trivia + live
+  // music" tag combination still surfaces as game_night for alert rules.
+  if (
+    lower.includes("bingo") ||
+    lower.includes("trivia") ||
+    lower.includes("karaoke") ||
+    lower.includes("board game") ||
+    lower.includes("game night") ||
+    lower.includes("pub games")
+  )
+    return "game_night";
+  if (lower.includes("comedy")) return "comedy";
   if (lower.includes("music")) return "music";
-  if (lower.includes("comedy")) return "arts";
   if (lower.includes("food") || lower.includes("drink")) return "food";
   if (lower.includes("art")) return "arts";
   if (lower.includes("sport")) return "sports";

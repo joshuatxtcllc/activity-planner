@@ -157,12 +157,23 @@ function parseHoustonPressDate(dateText: string): Date | null {
 function mapCategory(categoryText: string): string | undefined {
   const lower = categoryText.toLowerCase();
 
+  // Match game-night first so "trivia night" doesn't get swallowed by
+  // the broader "sport|game" check below.
+  if (
+    lower.includes("bingo") ||
+    lower.includes("trivia") ||
+    lower.includes("karaoke") ||
+    lower.includes("board game") ||
+    lower.includes("game night") ||
+    lower.includes("pub games")
+  )
+    return "game_night";
+  if (lower.includes("comedy") || lower.includes("stand-up") || lower.includes("standup")) return "comedy";
   if (lower.includes("music") || lower.includes("concert") || lower.includes("band")) return "music";
   if (lower.includes("food") || lower.includes("dining") || lower.includes("restaurant")) return "food";
   if (lower.includes("art") || lower.includes("gallery") || lower.includes("exhibit")) return "arts";
   if (lower.includes("sport") || lower.includes("game")) return "sports";
   if (
-    lower.includes("comedy") ||
     lower.includes("theatre") ||
     lower.includes("theater") ||
     lower.includes("performance")
