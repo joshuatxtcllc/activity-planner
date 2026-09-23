@@ -12,14 +12,22 @@
  * mount it as an Express handler at /mcp so it lives alongside the
  * existing REST routes and inherits the same TLS + reverse proxy.
  *
- * Auth: a single shared bearer token from MCP_BEARER_TOKEN. Personal
- * use only — a proper OAuth 2.1 authorization server would be a
- * follow-up if this ever ships to multiple users.
+ * Auth: full OAuth 2.1 with Dynamic Client Registration (RFC 7591) and
+ * PKCE (RFC 7636), served by an in-process authorization server backed
+ * by ActivityPlannerOAuthProvider. The metadata endpoints, /register,
+ * /authorize, and /token routes are mounted by the SDK's mcpAuthRouter
+ * at the application root; /mcp itself is gated by requireBearerAuth,
+ * which validates the access tokens issued by that authorization
+ * server. See oauth-provider.ts for the provider details, including
+ * the consent-page bearer-token gate that keeps this a single-operator
+ * deployment.
  */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
+import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js";
 import { z } from "zod";
-import type { Request, Response, NextFunction } from "express";
+import express, { type Express, type Request, type Response } from "express";
 import { and, desc, eq, gte, ilike, lte, or } from "drizzle-orm";
 import { db } from "../db";
 import {
@@ -31,15 +39,11 @@ import {
 } from "../../shared/schema";
 import { startScrapeJob, getScrapeJob } from "../services/scrape-jobs";
 import logger from "../utils/logger";
+import { ActivityPlannerOAuthProvider } from "./oauth-provider";
 
 const SERVER_NAME = "activity-planner";
-const SERVER_VERSION = "0.1.0";
+const SERVER_VERSION = "0.2.0";
 
-/**
- * Build a fresh McpServer with the tool set registered. Called once at
- * boot and again for each Streamable HTTP connection so tool handlers
- * capture the request context if we ever need it.
- */
 function buildServer(): McpServer {
   const server = new McpServer(
     { name: SERVER_NAME, version: SERVER_VERSION },
@@ -138,7 +142,6 @@ function buildServer(): McpServer {
     }
   );
 
-  // -- list_watched_venues --------------------------------------------
   server.registerTool(
     "list_watched_venues",
     {
@@ -158,7 +161,6 @@ function buildServer(): McpServer {
     }
   );
 
-  // -- create_alert_rule ----------------------------------------------
   server.registerTool(
     "create_alert_rule",
     {
@@ -191,7 +193,6 @@ function buildServer(): McpServer {
     }
   );
 
-  // -- list_alert_rules -----------------------------------------------
   server.registerTool(
     "list_alert_rules",
     {
@@ -212,7 +213,6 @@ function buildServer(): McpServer {
     }
   );
 
-  // -- delete_alert_rule ----------------------------------------------
   server.registerTool(
     "delete_alert_rule",
     {
@@ -248,7 +248,6 @@ function buildServer(): McpServer {
     }
   );
 
-  // -- list_rule_deliveries -------------------------------------------
   server.registerTool(
     "list_rule_deliveries",
     {
@@ -287,7 +286,6 @@ function buildServer(): McpServer {
     }
   );
 
-  // -- trigger_scrape --------------------------------------------------
   server.registerTool(
     "trigger_scrape",
     {
@@ -306,7 +304,6 @@ function buildServer(): McpServer {
     }
   );
 
-  // -- get_scrape_status ----------------------------------------------
   server.registerTool(
     "get_scrape_status",
     {
@@ -334,34 +331,12 @@ function buildServer(): McpServer {
 }
 
 /**
- * Bearer-token middleware. Rejects everything unless MCP_BEARER_TOKEN
- * matches. If the env var is empty, the whole /mcp mount refuses
- * traffic — no auth = no MCP.
+ * Streamable HTTP request handler. Fresh McpServer + transport per
+ * request keeps the handler stateless.
  */
-export function mcpAuthMiddleware(req: Request, res: Response, next: NextFunction) {
-  const expected = process.env.MCP_BEARER_TOKEN;
-  if (!expected) {
-    res.status(503).json({ error: "MCP disabled: MCP_BEARER_TOKEN not configured" });
-    return;
-  }
-  const header = req.header("authorization") || "";
-  const match = /^Bearer\s+(.+)$/i.exec(header);
-  if (!match || match[1] !== expected) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-  next();
-}
-
-/**
- * Express handler that speaks the Streamable HTTP transport. Fresh
- * McpServer per request keeps handlers stateless.
- */
-export async function handleMcpRequest(req: Request, res: Response) {
+async function handleMcpRequest(req: Request, res: Response): Promise<void> {
   try {
     const transport = new StreamableHTTPServerTransport({
-      // Sessionless mode: every request gets a fresh transport. Simpler
-      // and safer for a personal-use bearer-token deployment.
       sessionIdGenerator: undefined,
     });
     res.on("close", () => {
@@ -378,4 +353,99 @@ export async function handleMcpRequest(req: Request, res: Response) {
       res.status(500).json({ error: "MCP request failed" });
     }
   }
+}
+
+/**
+ * Install every route this connector needs on the given Express app.
+ *
+ * MCP_BEARER_TOKEN controls whether the connector is enabled at all:
+ * - unset  → /mcp and every OAuth route return 503 (fail closed)
+ * - set    → /mcp validates access tokens issued by the OAuth server,
+ *            and the consent page requires this exact value from the
+ *            operator to grant an authorization code.
+ *
+ * MCP_ISSUER_URL should be the public HTTPS origin (e.g.
+ * https://your-app.up.railway.app). It's used to build the metadata
+ * documents and as the `issuer` claim. If unset, we derive it from
+ * the incoming request headers — fine for personal use but brittle
+ * behind unusual proxy configs.
+ */
+export function installMcpConnector(app: Express): void {
+  const consentToken = process.env.MCP_BEARER_TOKEN;
+  if (!consentToken) {
+    const stub = (_req: Request, res: Response) => {
+      res.status(503).json({ error: "MCP disabled: MCP_BEARER_TOKEN not configured" });
+    };
+    app.all("/mcp", stub);
+    app.all("/.well-known/oauth-authorization-server", stub);
+    app.all("/.well-known/oauth-protected-resource", stub);
+    app.all("/oauth/*", stub);
+    logger.warn("MCP connector disabled: MCP_BEARER_TOKEN is not set");
+    return;
+  }
+
+  // Derive the public issuer URL. Prefer an explicit env var; otherwise
+  // fall back to the first /mcp hit and remember it. In practice
+  // Railway sets a stable public hostname, so pinning MCP_ISSUER_URL in
+  // the environment is the recommended production setup.
+  const explicitIssuer = process.env.MCP_ISSUER_URL;
+  const issuerUrl = new URL(explicitIssuer || "https://placeholder.invalid");
+
+  const provider = new ActivityPlannerOAuthProvider(consentToken);
+
+  // The SDK's mcpAuthRouter installs metadata endpoints
+  // (/.well-known/oauth-authorization-server + oauth-protected-resource),
+  // /register (dynamic client registration), /authorize, /token, and
+  // /revoke. It also enforces PKCE end-to-end.
+  app.use(
+    mcpAuthRouter({
+      provider,
+      issuerUrl,
+      resourceName: "Activity Planner",
+      scopesSupported: ["mcp"],
+      // Advertise a documentation URL so MCP clients can surface a
+      // "learn more" link on their consent screen if they want.
+      serviceDocumentationUrl: new URL("https://github.com/joshuatxtcllc/activity-planner"),
+    })
+  );
+
+  // The consent form POSTs here with { pending_id, consent_token }.
+  // Mounted as urlencoded because it's a plain HTML form submission.
+  app.post(
+    "/oauth/complete-authorize",
+    express.urlencoded({ extended: false }),
+    (req: Request, res: Response) => {
+      const pendingId = String(req.body?.pending_id ?? "");
+      const consent = String(req.body?.consent_token ?? "");
+      if (!pendingId) {
+        res.status(400).json({ error: "pending_id required" });
+        return;
+      }
+      provider.completeAuthorization(pendingId, consent, res);
+    }
+  );
+
+  // The MCP endpoint itself. Every request must carry an access token
+  // issued by /oauth/token. The middleware attaches AuthInfo to
+  // req.auth on success and returns a spec-compliant WWW-Authenticate
+  // header on 401.
+  const resourceMetadataUrl = new URL(
+    "/.well-known/oauth-protected-resource",
+    issuerUrl
+  ).toString();
+  app.all(
+    "/mcp",
+    requireBearerAuth({
+      verifier: provider,
+      resourceMetadataUrl,
+    }),
+    (req: Request, res: Response) => {
+      handleMcpRequest(req, res).catch(() => void 0);
+    }
+  );
+
+  logger.info("MCP connector installed", {
+    issuer: issuerUrl.toString(),
+    resourceMetadataUrl,
+  });
 }
