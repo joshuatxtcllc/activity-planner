@@ -258,6 +258,43 @@ VALUES
   ('713-music-hall', '713 Music Hall', ARRAY['713 Music', '713MH'], '401 Franklin St, Houston, TX 77201', 'Downtown', 'https://713musichall.com', 'ticketmaster'),
   ('houston-improv', 'Houston Improv', ARRAY['The Improv Houston', 'Improv Houston'], '7620 Katy Fwy #431, Houston, TX 77024', 'Memorial', 'https://improv.com/houston', 'houstonimprov')
 ON CONFLICT (slug) DO NOTHING;
+
+-- Geo enrichment columns (added 2026-09; safe to re-run) ---------------
+ALTER TABLE "events"          ADD COLUMN IF NOT EXISTS "latitude"         double precision;
+ALTER TABLE "events"          ADD COLUMN IF NOT EXISTS "longitude"        double precision;
+ALTER TABLE "events"          ADD COLUMN IF NOT EXISTS "place_id"         text;
+ALTER TABLE "events"          ADD COLUMN IF NOT EXISTS "place_id_status"  text;
+ALTER TABLE "events"          ADD COLUMN IF NOT EXISTS "geocoded_at"      timestamp;
+
+ALTER TABLE "watched_venues"  ADD COLUMN IF NOT EXISTS "latitude"         double precision;
+ALTER TABLE "watched_venues"  ADD COLUMN IF NOT EXISTS "longitude"        double precision;
+ALTER TABLE "watched_venues"  ADD COLUMN IF NOT EXISTS "place_id"         text;
+ALTER TABLE "watched_venues"  ADD COLUMN IF NOT EXISTS "place_id_status"  text;
+ALTER TABLE "watched_venues"  ADD COLUMN IF NOT EXISTS "geocoded_at"      timestamp;
+
+ALTER TABLE "alert_rules"     ADD COLUMN IF NOT EXISTS "center_lat"       double precision;
+ALTER TABLE "alert_rules"     ADD COLUMN IF NOT EXISTS "center_lng"       double precision;
+ALTER TABLE "alert_rules"     ADD COLUMN IF NOT EXISTS "radius_miles"     double precision;
+
+-- Partial index that helps radius queries — only rows with coordinates
+-- ever appear here, so it stays small.
+CREATE INDEX IF NOT EXISTS "idx_events_geo"
+  ON "events" ("latitude", "longitude")
+  WHERE "latitude" IS NOT NULL AND "longitude" IS NOT NULL;
+
+-- Place-lookup cache -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS "place_lookups" (
+  "id"                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "input_hash"         text NOT NULL UNIQUE,
+  "input"              text NOT NULL,
+  "status"             text NOT NULL,
+  "place_id"           text,
+  "formatted_address"  text,
+  "latitude"           double precision,
+  "longitude"          double precision,
+  "error_message"      text,
+  "looked_up_at"       timestamp DEFAULT now() NOT NULL
+);
 `;
 
 /**

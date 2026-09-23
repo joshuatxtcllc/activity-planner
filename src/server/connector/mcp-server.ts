@@ -28,7 +28,7 @@ import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
 import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js";
 import { z } from "zod";
 import express, { type Express, type Request, type Response } from "express";
-import { and, desc, eq, gte, ilike, lte, or } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, isNotNull, lte, or, sql } from "drizzle-orm";
 import { db } from "../db";
 import {
   events,
@@ -38,8 +38,55 @@ import {
   insertAlertRuleSchema,
 } from "../../shared/schema";
 import { startScrapeJob, getScrapeJob } from "../services/scrape-jobs";
+import {
+  boundingBoxMiles,
+  centroidForZip,
+  distanceMiles,
+  haversineMilesSql,
+  isValidLatLng,
+  type LatLng,
+} from "../services/geo";
+import {
+  backfillEventGeo,
+  backfillWatchedVenueGeo,
+} from "../services/geocode-backfill";
 import logger from "../utils/logger";
 import { ActivityPlannerOAuthProvider } from "./oauth-provider";
+
+// ---------------------------------------------------------------------------
+// Shared geo-arg helpers
+// ---------------------------------------------------------------------------
+
+/** Zod schema fragment for center-point args accepted by geo tools. */
+const geoCenterArgs = {
+  centerZip: z
+    .string()
+    .optional()
+    .describe(
+      "5-digit ZIP code. Resolved against a bundled Houston-area centroid table. " +
+        "Ignored if centerLat/centerLng are also passed."
+    ),
+  centerLat: z.number().min(-90).max(90).optional(),
+  centerLng: z.number().min(-180).max(180).optional(),
+} as const;
+
+/**
+ * Resolve center-point args to a concrete {lat, lng}, preferring
+ * explicit lat/lng, then a ZIP centroid. Returns null when neither is
+ * usable so callers can decide whether to surface an error.
+ */
+function resolveCenter(args: {
+  centerZip?: string;
+  centerLat?: number;
+  centerLng?: number;
+}): LatLng | null {
+  if (args.centerLat != null && args.centerLng != null) {
+    const p = { lat: args.centerLat, lng: args.centerLng };
+    return isValidLatLng(p) ? p : null;
+  }
+  if (args.centerZip) return centroidForZip(args.centerZip);
+  return null;
+}
 
 const SERVER_NAME = "activity-planner";
 const SERVER_VERSION = "0.2.0";
@@ -85,6 +132,12 @@ function buildServer(): McpServer {
         dateStart: z.string().optional().describe("ISO 8601 lower bound on startDate"),
         dateEnd: z.string().optional().describe("ISO 8601 upper bound on startDate"),
         upcomingOnly: z.boolean().optional().default(true),
+        // Geo filter (optional). When radiusMiles + a center are set,
+        // the result is restricted to events whose lat/lng falls within
+        // the radius. Events without coordinates are excluded from
+        // radius queries — same fail-closed policy as alert rules.
+        ...geoCenterArgs,
+        radiusMiles: z.number().positive().max(500).optional(),
         limit: z.number().int().min(1).max(200).optional().default(50),
       },
     },
@@ -107,19 +160,62 @@ function buildServer(): McpServer {
         filters.push(or(ilike(events.title, term), ilike(events.description, term))!);
       }
 
-      const rows = await db
-        .select()
+      // Geo filter: bounding-box prefilter in SQL, then exact haversine
+      // check via extra selected column. Keeps the DB doing the coarse
+      // work while we get precise distance out for free.
+      const center = resolveCenter(args);
+      const radius = args.radiusMiles;
+      let distanceSql = null as ReturnType<typeof haversineMilesSql> | null;
+      if (center && radius && radius > 0) {
+        const bbox = boundingBoxMiles(center, radius);
+        filters.push(isNotNull(events.latitude));
+        filters.push(isNotNull(events.longitude));
+        filters.push(gte(events.latitude, bbox.minLat));
+        filters.push(lte(events.latitude, bbox.maxLat));
+        filters.push(gte(events.longitude, bbox.minLng));
+        filters.push(lte(events.longitude, bbox.maxLng));
+        distanceSql = haversineMilesSql(
+          sql`${events.latitude}`,
+          sql`${events.longitude}`,
+          center
+        );
+      }
+
+      const selectShape = distanceSql
+        ? { row: events, distanceMiles: distanceSql }
+        : { row: events };
+
+      const query = db
+        .select(selectShape as any)
         .from(events)
         .where(filters.length > 0 ? and(...filters) : undefined)
         .orderBy(events.startDate)
         .limit(args.limit ?? 50);
+
+      const raw = (await query) as Array<any>;
+      // When geo is set we also filter out rows that passed the bbox but
+      // sit outside the exact radius, and stamp `distanceMiles`.
+      const enriched = raw
+        .map((r) => {
+          const row = r.row ?? r;
+          const d =
+            typeof r.distanceMiles === "number"
+              ? r.distanceMiles
+              : center && row.latitude != null && row.longitude != null
+              ? distanceMiles(center, { lat: row.latitude, lng: row.longitude })
+              : null;
+          return { ...row, distanceMiles: d };
+        })
+        .filter((r) =>
+          radius && r.distanceMiles != null ? r.distanceMiles <= radius : true
+        );
 
       return {
         content: [
           {
             type: "text",
             text: JSON.stringify(
-              rows.map((r) => ({
+              enriched.map((r) => ({
                 id: r.id,
                 title: r.title,
                 startDate: r.startDate,
@@ -131,13 +227,126 @@ function buildServer(): McpServer {
                 priceMax: r.priceMax,
                 isFree: r.isFree,
                 url: r.url,
+                latitude: r.latitude,
+                longitude: r.longitude,
+                distanceMiles:
+                  r.distanceMiles != null ? Number(r.distanceMiles.toFixed(2)) : null,
               })),
               null,
               2
             ),
           },
         ],
-        structuredContent: { events: rows, count: rows.length },
+        structuredContent: { events: enriched, count: enriched.length },
+      };
+    }
+  );
+
+  // -- find_venues_near ------------------------------------------------
+  server.registerTool(
+    "find_venues_near",
+    {
+      title: "Find venues near a point",
+      description:
+        "Return the seeded watched-venue registry filtered to those within " +
+        "`radiusMiles` of a center point. Pass either a Houston ZIP (centerZip) " +
+        "or an explicit centerLat + centerLng. Sorted by distance ascending. " +
+        "Venues without coordinates are excluded — run enrich_venue_geo to " +
+        "resolve them.",
+      inputSchema: {
+        ...geoCenterArgs,
+        radiusMiles: z.number().positive().max(100).default(5),
+        limit: z.number().int().min(1).max(200).default(50),
+      },
+    },
+    async (args) => {
+      const center = resolveCenter(args);
+      if (!center) {
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text:
+                "Center point required. Pass either centerZip (Houston-area) or both " +
+                "centerLat and centerLng.",
+            },
+          ],
+        };
+      }
+      const rows = await db
+        .select()
+        .from(watchedVenues)
+        .where(and(isNotNull(watchedVenues.latitude), isNotNull(watchedVenues.longitude)))
+        .orderBy(watchedVenues.name);
+      const enriched = rows
+        .map((v) => ({
+          ...v,
+          distanceMiles:
+            v.latitude != null && v.longitude != null
+              ? distanceMiles(center, { lat: v.latitude, lng: v.longitude })
+              : null,
+        }))
+        .filter((v) => v.distanceMiles != null && v.distanceMiles <= args.radiusMiles)
+        .sort((a, b) => (a.distanceMiles ?? 0) - (b.distanceMiles ?? 0))
+        .slice(0, args.limit);
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              enriched.map((v) => ({
+                slug: v.slug,
+                name: v.name,
+                neighborhood: v.neighborhood,
+                address: v.address,
+                latitude: v.latitude,
+                longitude: v.longitude,
+                distanceMiles:
+                  v.distanceMiles != null ? Number(v.distanceMiles.toFixed(2)) : null,
+              })),
+              null,
+              2
+            ),
+          },
+        ],
+        structuredContent: { venues: enriched, count: enriched.length, center },
+      };
+    }
+  );
+
+  // -- enrich_venue_geo ------------------------------------------------
+  server.registerTool(
+    "enrich_venue_geo",
+    {
+      title: "Backfill lat/lng via Google Places",
+      description:
+        "Resolve missing coordinates on watched_venues and events using the " +
+        "Places API (cached in place_lookups). Idempotent; skips rows that " +
+        "were previously marked not_found. Requires GOOGLE_MAPS_API_KEY in " +
+        "the server env.",
+      inputSchema: {
+        scope: z.enum(["venues", "events", "both"]).default("both"),
+        limit: z.number().int().min(1).max(500).default(100),
+        dryRun: z.boolean().default(false),
+      },
+    },
+    async (args) => {
+      const results: unknown[] = [];
+      if (args.scope === "venues" || args.scope === "both") {
+        results.push(
+          await backfillWatchedVenueGeo({ limit: args.limit, dryRun: args.dryRun })
+        );
+      }
+      if (args.scope === "events" || args.scope === "both") {
+        results.push(
+          await backfillEventGeo({ limit: args.limit, dryRun: args.dryRun })
+        );
+      }
+      return {
+        content: [{ type: "text", text: JSON.stringify(results, null, 2) }],
+        structuredContent: { results },
       };
     }
   );
@@ -181,10 +390,25 @@ function buildServer(): McpServer {
         channelEmail: z.boolean().optional().default(true),
         channelSms: z.boolean().optional().default(false),
         channelInApp: z.boolean().optional().default(true),
+        // Optional geo filter. All three must be set (or resolvable from
+        // centerZip) to activate the filter; otherwise it's ignored.
+        centerZip: z.string().optional(),
+        centerLat: z.number().min(-90).max(90).optional(),
+        centerLng: z.number().min(-180).max(180).optional(),
+        radiusMiles: z.number().positive().max(500).optional(),
       },
     },
     async (args) => {
-      const payload = insertAlertRuleSchema.parse(args);
+      // Resolve centerZip → lat/lng at creation time so evaluation stays
+      // cheap. If the ZIP is unknown and no explicit coords were given,
+      // the geo filter is simply not applied.
+      const resolved = resolveCenter(args);
+      const payload = insertAlertRuleSchema.parse({
+        ...args,
+        centerLat: resolved?.lat ?? args.centerLat ?? null,
+        centerLng: resolved?.lng ?? args.centerLng ?? null,
+        radiusMiles: args.radiusMiles ?? null,
+      });
       const [created] = await db.insert(alertRules).values(payload).returning();
       return {
         content: [{ type: "text", text: `Created rule ${created.id}: ${created.name}` }],
