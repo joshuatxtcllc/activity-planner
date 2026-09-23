@@ -10,6 +10,7 @@ import { existsSync, readdirSync } from "fs";
 import { createServer } from "http";
 import logger from "./utils/logger";
 import routes from "./routes";
+import { handleMcpRequest, mcpAuthMiddleware } from "./connector/mcp-server";
 import { startScheduler } from "./scheduler";
 import { initializeDatabase } from "./db";
 import { MCPServer } from "./mcp/MCPServer.js";
@@ -76,6 +77,13 @@ app.use((req, _res, next) => {
 });
 
 app.use("/api", routes);
+
+// Model Context Protocol endpoint (custom connector for Perplexity /
+// Claude Desktop / other MCP hosts). Bearer-token gated via
+// MCP_BEARER_TOKEN; set the env var to enable.
+app.all("/mcp", mcpAuthMiddleware, (req, res) => {
+  handleMcpRequest(req, res).catch(() => void 0);
+});
 
 app.get("/health", (_req, res) => {
   res.json({
