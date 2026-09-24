@@ -1,4 +1,12 @@
-import { pgTable, text, integer, timestamp, boolean, uuid } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  integer,
+  timestamp,
+  boolean,
+  uuid,
+  doublePrecision,
+} from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 
 export const events = pgTable("events", {
@@ -35,6 +43,16 @@ export const events = pgTable("events", {
 
   // For deduplication
   uniqueKey: text("unique_key").unique(), // hash of title + date + location
+
+  // Geo enrichment — populated by places-lookup service on scrape and
+  // during the batch backfill. `placeId` is Google's opaque venue id;
+  // `placeIdStatus` is 'ok' | 'not_found' | 'error' | null so we don't
+  // re-hit the API for known-bad addresses on every run.
+  latitude: doublePrecision("latitude"),
+  longitude: doublePrecision("longitude"),
+  placeId: text("place_id"),
+  placeIdStatus: text("place_id_status"),
+  geocodedAt: timestamp("geocoded_at"),
 });
 
 // Zod schemas for validation
@@ -254,6 +272,13 @@ export const alertRules = pgTable("alert_rules", {
   dateRangeStart: timestamp("date_range_start"),
   dateRangeEnd: timestamp("date_range_end"),
 
+  // Optional geo filter — WGS-84 point + radius in miles. When any of
+  // (centerLat, centerLng, radiusMiles) is null the geo dimension is
+  // disabled (matches everything). Applied AFTER all other filters.
+  centerLat: doublePrecision("center_lat"),
+  centerLng: doublePrecision("center_lng"),
+  radiusMiles: doublePrecision("radius_miles"),
+
   // Delivery channels
   channelEmail: boolean("channel_email").default(true),
   channelSms: boolean("channel_sms").default(false),
@@ -309,7 +334,45 @@ export const watchedVenues = pgTable("watched_venues", {
   website: text("website"),
   primarySource: text("primary_source"), // ticketmaster | seatgeek | houstonimprov | ...
   createdAt: timestamp("created_at").defaultNow().notNull(),
+
+  // Geo enrichment — same pattern as events.
+  latitude: doublePrecision("latitude"),
+  longitude: doublePrecision("longitude"),
+  placeId: text("place_id"),
+  placeIdStatus: text("place_id_status"),
+  geocodedAt: timestamp("geocoded_at"),
 });
+
+// ---------------------------------------------------------------------------
+// Place lookup cache — one row per (address string) resolved via Google
+// Places. Keeps us within API quota by never hitting Places twice for the
+// same input; also lets us backfill without external calls once the cache
+// is warm.
+// ---------------------------------------------------------------------------
+export const placeLookups = pgTable("place_lookups", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  // The normalized input string — either an address, a "venue, city, state"
+  // pair, or a raw venue name. Hashed for the unique constraint because
+  // strings can be long and non-ASCII.
+  inputHash: text("input_hash").notNull().unique(),
+  input: text("input").notNull(),
+
+  // Result — populated on success. status distinguishes hits from
+  // misses so the caller can decide whether to retry later.
+  status: text("status").notNull(), // ok | not_found | error
+  placeId: text("place_id"),
+  formattedAddress: text("formatted_address"),
+  latitude: doublePrecision("latitude"),
+  longitude: doublePrecision("longitude"),
+
+  // Diagnostics
+  errorMessage: text("error_message"),
+  lookedUpAt: timestamp("looked_up_at").defaultNow().notNull(),
+});
+
+export const insertPlaceLookupSchema = createInsertSchema(placeLookups);
+export type PlaceLookup = typeof placeLookups.$inferSelect;
+export type NewPlaceLookup = typeof placeLookups.$inferInsert;
 
 export const insertWatchedVenueSchema = createInsertSchema(watchedVenues);
 export type WatchedVenue = typeof watchedVenues.$inferSelect;

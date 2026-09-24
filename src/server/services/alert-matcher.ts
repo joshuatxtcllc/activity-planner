@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { alertRules, alertDeliveries, type Event, type AlertRule } from "../../shared/schema";
 import { sendEmail, sendSMS } from "../utils/mailer";
+import { distanceMiles, isValidLatLng } from "./geo";
 import logger from "../utils/logger";
 
 /**
@@ -51,11 +52,33 @@ function dateInRange(
 }
 
 /**
+ * True when the rule's geo filter (if any) accepts the event.
+ * Geo filter is considered enabled only when ALL three of centerLat,
+ * centerLng, and radiusMiles are set. An event with no coordinates
+ * cannot match a geo-filtered rule — we fail closed so users don't
+ * silently receive notifications for events we can't confirm are
+ * inside their radius.
+ */
+function geoMatches(rule: AlertRule, event: Event): boolean {
+  const centerLat = rule.centerLat;
+  const centerLng = rule.centerLng;
+  const radius = rule.radiusMiles;
+  if (centerLat == null || centerLng == null || radius == null) return true;
+  const center = { lat: centerLat, lng: centerLng };
+  if (!isValidLatLng(center) || !isFinite(radius) || radius <= 0) return true;
+  if (event.latitude == null || event.longitude == null) return false;
+  const point = { lat: event.latitude, lng: event.longitude };
+  if (!isValidLatLng(point)) return false;
+  return distanceMiles(center, point) <= radius;
+}
+
+/**
  * Return true when an event satisfies EVERY dimension of a rule
  * (AND across dimensions) with OR semantics inside each list.
  *
- * A rule with all lists empty and no date bounds matches everything —
- * useful as a catch-all "notify me about anything new" rule.
+ * A rule with all lists empty and no date/geo bounds matches
+ * everything — useful as a catch-all "notify me about anything new"
+ * rule.
  */
 export function matchRule(rule: AlertRule, event: Event): boolean {
   return (
@@ -63,7 +86,8 @@ export function matchRule(rule: AlertRule, event: Event): boolean {
     anyMatches(rule.venues, event.venue) &&
     exactAnyMatches(rule.categories, event.category) &&
     exactAnyMatches(rule.sources, event.source) &&
-    dateInRange(event, rule.dateRangeStart, rule.dateRangeEnd)
+    dateInRange(event, rule.dateRangeStart, rule.dateRangeEnd) &&
+    geoMatches(rule, event)
   );
 }
 
