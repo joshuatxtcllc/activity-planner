@@ -127,7 +127,7 @@ function buildServer(): McpServer {
         source: z
           .string()
           .optional()
-          .describe("Exact scraper source id, e.g. ticketmaster, houstonimprov"),
+          .describe("Exact scraper source id, e.g. ticketmaster, houstonimprov, localbeat"),
         search: z.string().optional().describe("Free-text search over title + description"),
         dateStart: z.string().optional().describe("ISO 8601 lower bound on startDate"),
         dateEnd: z.string().optional().describe("ISO 8601 upper bound on startDate"),
