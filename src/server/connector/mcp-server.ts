@@ -356,13 +356,28 @@ function buildServer(): McpServer {
     {
       title: "List watched venues",
       description:
-        "Return the seeded venue registry (Toyota Center, House of Blues Houston, " +
-        "713 Music Hall, Houston Improv). Use the slugs and aliases when composing " +
-        "alert rule venue filters.",
-      inputSchema: {},
+        "Return the watched-venue registry: the big downtown rooms (Toyota Center, " +
+        "House of Blues, 713 Music Hall, Houston Improv) plus a Heights / inner-loop " +
+        "pack (White Oak Music Hall, Raven Tower, Big Star Bar, Continental Club, " +
+        "Warehouse Live, The Secret Group, and more). Optional neighborhood filter. " +
+        "Use the slugs and aliases when composing alert rule venue filters.",
+      inputSchema: {
+        neighborhood: z
+          .string()
+          .optional()
+          .describe("Case-insensitive substring, e.g. 'Heights', 'EaDo', 'Montrose'"),
+      },
     },
-    async () => {
-      const rows = await db.select().from(watchedVenues).orderBy(watchedVenues.name);
+    async (args) => {
+      const rows = await db
+        .select()
+        .from(watchedVenues)
+        .where(
+          args.neighborhood
+            ? ilike(watchedVenues.neighborhood, `%${args.neighborhood}%`)
+            : undefined
+        )
+        .orderBy(watchedVenues.name);
       return {
         content: [{ type: "text", text: JSON.stringify(rows, null, 2) }],
         structuredContent: { venues: rows },

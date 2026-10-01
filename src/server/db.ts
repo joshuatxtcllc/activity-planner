@@ -307,6 +307,16 @@ export async function initializeDatabase(): Promise<void> {
     await client.unsafe(MIGRATION_SQL);
     logger.info("✅ Database schema initialized successfully");
 
+    // Seed the Heights + inner-loop venue pack (idempotent, non-fatal)
+    try {
+      const { seedHeightsInnerLoopVenues } = await import('./data/venue-seed');
+      await seedHeightsInnerLoopVenues();
+    } catch (venueSeedError) {
+      logger.warn("Failed to seed venue pack (non-fatal)", {
+        error: venueSeedError instanceof Error ? venueSeedError.message : String(venueSeedError)
+      });
+    }
+
     // Seed Houston activities if not already done
     try {
       const { seedHoustonActivities } = await import('./scripts/seed-activities');
