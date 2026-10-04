@@ -19,7 +19,8 @@ import { scrapeEventCartel } from "./eventcartel";
 import { scrapeHoustonImprov } from "./houstonimprov";
 import { scrapeLocalBeat } from "./localbeat";
 import { evaluateAlerts } from "../services/alert-matcher";
-import { eq } from "drizzle-orm";
+import { runPostScrapeGeo } from "../services/geocode-backfill";
+import { eq, inArray } from "drizzle-orm";
 
 /**
  * Main scraper orchestrator
@@ -240,10 +241,30 @@ export async function runAllScrapers(): Promise<{
 
     logger.info(`✅ Scraping complete: ${newCount} new, ${duplicateCount} duplicates, ${skippedCount} skipped (invalid)`);
 
+    // Geocode before alerts: radius-filtered alert rules fail closed on
+    // events without coordinates, so new events must be placed first.
+    let alertCandidates = insertedEvents;
+    try {
+      const geo = await runPostScrapeGeo();
+      if (geo) {
+        logger.info("Post-scrape geocoding complete", { venues: geo.venues, events: geo.events });
+        if (insertedEvents.length) {
+          alertCandidates = await db
+            .select()
+            .from(events)
+            .where(inArray(events.id, insertedEvents.map((e) => e.id)));
+        }
+      }
+    } catch (error) {
+      logger.error("Post-scrape geocoding failed (scrape still succeeded)", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
     // Fire interest-based alerts against the freshly inserted events.
     // Wrapped in try/catch so a matcher failure never fails the scrape.
     try {
-      await evaluateAlerts(insertedEvents);
+      await evaluateAlerts(alertCandidates);
     } catch (error) {
       logger.error("Alert evaluation failed (scrape still succeeded)", {
         error: error instanceof Error ? error.message : String(error),
