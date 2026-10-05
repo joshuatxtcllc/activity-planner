@@ -7,6 +7,7 @@ import CuratorPage from "./pages/CuratorPage";
 import SearchPage from "./pages/SearchPage";
 import SafetyPage from "./pages/SafetyPage";
 import AlertRulesPage from "./pages/AlertRulesPage";
+import MapPage from "./pages/MapPage";
 import ChatbotWidget from "./components/ChatbotWidget";
 
 export default function App() {
@@ -40,6 +41,12 @@ export default function App() {
                   className="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium"
                 >
                   AI Planner
+                </a>
+                <a
+                  href="/map"
+                  className="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium"
+                >
+                  Map
                 </a>
                 <a
                   href="/search"
@@ -125,6 +132,13 @@ export default function App() {
                   AI Planner
                 </a>
                 <a
+                  href="/map"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="text-gray-700 hover:text-indigo-600 hover:bg-gray-50 px-3 py-2 rounded-md text-base font-medium"
+                >
+                  Map
+                </a>
+                <a
                   href="/search"
                   onClick={() => setMobileMenuOpen(false)}
                   className="text-gray-700 hover:text-indigo-600 hover:bg-gray-50 px-3 py-2 rounded-md text-base font-medium"
@@ -166,6 +180,7 @@ export default function App() {
         <Route path="/stats" component={StatsPage} />
         <Route path="/safety" component={SafetyPage} />
         <Route path="/alerts" component={AlertRulesPage} />
+        <Route path="/map" component={MapPage} />
       </Switch>
 
       {/* Chatbot Widget - Appears on all pages */}

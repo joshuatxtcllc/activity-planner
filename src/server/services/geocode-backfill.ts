@@ -13,7 +13,7 @@
  * (thousands of rows) would blow past free-tier quota if it ran
  * unconditionally at startup.
  */
-import { and, eq, isNull, or, sql } from "drizzle-orm";
+import { and, eq, gte, isNull, or, sql } from "drizzle-orm";
 import { db } from "../db";
 import { events, watchedVenues } from "../../shared/schema";
 import { eventLookupInput, resolvePlace } from "./places";
@@ -125,10 +125,12 @@ export async function backfillEventGeo(
     .where(
       and(
         isNull(events.latitude),
-        or(isNull(events.placeIdStatus), eq(events.placeIdStatus, "ok"))!
+        or(isNull(events.placeIdStatus), eq(events.placeIdStatus, "ok"))!,
+        // Past events never appear on the map or in alerts; don't pay for them.
+        gte(events.startDate, new Date())
       )
     )
-    .orderBy(sql`${events.startDate} DESC`) // freshest events first
+    .orderBy(sql`${events.startDate} ASC`) // soonest events first
     .limit(limit);
 
   const result: BackfillResult = {
@@ -183,4 +185,23 @@ export async function backfillEventGeo(
 
   logger.info("Event geo backfill complete", result);
   return result;
+}
+
+/**
+ * Geocode pass run after each scrape, before alert evaluation, so the map
+ * and radius-filtered alerts see new events immediately. Skips silently
+ * without GOOGLE_MAPS_API_KEY (or with GEO_AFTER_SCRAPE=false). Lookups are
+ * cached per venue+address in place_lookups, so steady-state cost is one
+ * Places call per never-seen venue.
+ */
+export async function runPostScrapeGeo(): Promise<{ venues: BackfillResult; events: BackfillResult } | null> {
+  if (process.env.GEO_AFTER_SCRAPE === "false") return null;
+  if (!process.env.GOOGLE_MAPS_API_KEY?.trim()) {
+    logger.info("Post-scrape geocoding skipped: GOOGLE_MAPS_API_KEY not set");
+    return null;
+  }
+  const limit = Number(process.env.GEO_AFTER_SCRAPE_LIMIT) || 500;
+  const venues = await backfillWatchedVenueGeo({ limit: 100 });
+  const evts = await backfillEventGeo({ limit });
+  return { venues, events: evts };
 }

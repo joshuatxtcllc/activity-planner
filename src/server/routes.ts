@@ -15,6 +15,7 @@ import verifyUrlRoutes from "./routes/verify-url";
 import preferencesRoutes from "./routes/preferences";
 import searchRoutes from "./routes/search";
 import alertRulesRoutes from "./routes/alert-rules";
+import mapRoutes from "./routes/map";
 
 const router = Router();
 
@@ -35,6 +36,9 @@ router.use("/search", searchRoutes);
 
 // Mount alert-rule CRUD routes
 router.use("/alert-rules", alertRulesRoutes);
+
+// Mount map-view routes (markers, clicked-place events, browser config)
+router.use("/map", mapRoutes);
 
 /**
  * GET /api/events

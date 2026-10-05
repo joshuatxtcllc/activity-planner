@@ -3,6 +3,7 @@ import logger from "../utils/logger";
 import type { NewEvent } from "../../shared/schema";
 import { generateEventHash } from "../utils/deduplication";
 import { getUpcomingWeeksRange } from "../utils/date-utils";
+import { isValidLatLng } from "../services/geo";
 
 interface TicketmasterEvent {
   id: string;
@@ -20,6 +21,7 @@ interface TicketmasterEvent {
       city: { name: string };
       state: { stateCode: string };
       address?: { line1: string };
+      location?: { latitude?: string | number; longitude?: string | number };
     }>;
   };
   url: string;
@@ -32,6 +34,22 @@ interface TicketmasterEvent {
     min: number;
     max: number;
   }>;
+}
+
+/**
+ * Venue coordinates from a Discovery API venue. The docs type them as
+ * numbers but examples (and live responses) use strings; accept both and
+ * reject blanks and the 0,0 placeholder.
+ */
+export function venueCoords(
+  loc: { latitude?: string | number; longitude?: string | number } | undefined
+): { latitude: number; longitude: number } | Record<string, never> {
+  if (!loc || loc.latitude == null || loc.longitude == null) return {};
+  if (String(loc.latitude).trim() === "" || String(loc.longitude).trim() === "") return {};
+  const lat = Number(loc.latitude);
+  const lng = Number(loc.longitude);
+  if (!isValidLatLng({ lat, lng }) || (lat === 0 && lng === 0)) return {};
+  return { latitude: lat, longitude: lng };
 }
 
 export async function scrapeTicketmaster(): Promise<NewEvent[]> {
@@ -81,6 +99,10 @@ export async function scrapeTicketmaster(): Promise<NewEvent[]> {
           `${event.dates.start.localDate}T${event.dates.start.localTime || "00:00:00"}`
         );
 
+        // Ticketmaster includes exact venue coordinates; keep them so the
+        // map and radius filters work without a Places lookup.
+        const coords = venueCoords(venue?.location);
+
         const priceRange = event.priceRanges?.[0];
         const isFree = !priceRange || priceRange.min === 0;
 
@@ -100,6 +122,7 @@ export async function scrapeTicketmaster(): Promise<NewEvent[]> {
           isFree,
           externalId: event.id,
           uniqueKey: generateEventHash(event.name, startDate, location),
+          ...coords,
         };
 
         events.push(newEvent);
